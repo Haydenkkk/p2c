@@ -1,9 +1,10 @@
-program compilingPrinciple; //k+
-var i,k:integer;
-begin //sdfsdf
-	i:=5;
-	k:=3+4;
-	i := i + k; 
-	/*注释*/
-	k := 1999;
-end.
+Program example;
+
+Var c, d : integer;
+Function gcd( a, b : integer) : integer;
+Begin
+  If b = 0 Then gcd := a
+End;
+Begin
+  write(gcd(c, d))
+End.
