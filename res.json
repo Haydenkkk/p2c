@@ -1,8 +1,1 @@
-{
-  "ast": null,
-  "symbolTable": { "constants": [], "variables": [], "subFunc": [] },
-  "error": [
-    { "code": "B-01", "info": { "line": 8, "value": ["begin"], "lexpos": 196 } }
-  ],
-  "warning": []
-}
+{"ast": null, "symbolTable": {"constants": [], "variables": [], "subFunc": []}, "error": [{"code": "B-01", "info": {"line": 8, "value": ["begin"], "lexpos": 196}}], "warning": []}

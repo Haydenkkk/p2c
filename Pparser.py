@@ -37,8 +37,8 @@ class pParser(object):
         self.scanner.build()
         self.lexer = self.scanner.lexer
         tokens = self.scanner.tokens
-        # safe_assign = self.safe_assign
-        # warn_assign = self.warn_assign
+        safe_assign = self.safe_assign
+        warn_assign = self.warn_assign
 
         def p_programstruct(p):
             """
