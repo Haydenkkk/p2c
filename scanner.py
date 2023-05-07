@@ -210,15 +210,15 @@ class Scanner(object):
         t.lexer.skip(1)
 
 
-scanner = Scanner()
-scanner.build()
-fin = "testcodes/1.pas"
-f = open(fin, "r")
-data = f.read()
-scanner.input(data)
-while True:
-    tok = scanner.token()
-    if not tok:
-        break
-    print(tok)
+# scanner = Scanner()
+# scanner.build()
+# fin = "testcodes/1.pas"
+# f = open(fin, "r")
+# data = f.read()
+# scanner.input(data)
+# while True:
+#     tok = scanner.token()
+#     if not tok:
+#         break
+#     print(tok)
 # print(scanner.comment)
