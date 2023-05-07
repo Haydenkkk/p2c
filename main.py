@@ -16,6 +16,8 @@ def p2c():
     data = request.json
     Parser = pParser()
     res = Parser.parse(data)
-    # temp_data = json.dumps(res)
     print(data)
     return jsonify(res)
+
+
+app.run(host = '0.0.0.0', port=8000,debug=True)  # 启动服务端
