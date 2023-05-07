@@ -15,14 +15,30 @@ class pParser(object):
     inSubFun = False
     parser = None
     lexer = None
+    safe_assign = {
+            'INTEGER': ['INTEGER', 'REAL'],
+            'REAL': ['REAL'],
+            'CHAR': ['CHAR', 'INTEGER', 'REAL'],
+            'BOOLEAN': ['BOOLEAN', 'INTEGER', 'REAL', 'CHAR'],
+            'RECORD': ['RECORD']
+        }
+
+    # 定义产生Warning的赋值情况，如 CHAR数据类型的值赋值给BOOLEAN变量时会产生warning
+    warn_assign = {
+        'INTEGER': ['CHAR', 'BOOLEAN'],
+        'REAL': ['CHAR', 'BOOLEAN', 'INTEGER'],
+        'CHAR': ['BOOLEAN'],
+        'BOOLEAN': [],
+        'RECORD': []
+    }
 
     def __init__(self):
         self.scanner = Scanner()
         self.scanner.build()
         self.lexer = self.scanner.lexer
         tokens = self.scanner.tokens
-        safe_assign = self.scanner.safe_assign
-        warn_assign = self.scanner.warn_assign
+        safe_assign = self.safe_assign
+        warn_assign = self.warn_assign
 
         def p_programstruct(p):
             """
@@ -2072,12 +2088,12 @@ class pParser(object):
         }
 
 
-Parser = pParser()
-fin = "testcodes/1.pas"
-f = open(fin, "r")
-data = f.read()
-kk = Parser.parse(data)
-temp_data = json.dumps(kk)
-f2 = open("res.json", "w")
-f2.write(temp_data)
-f2.close()
+# Parser = pParser()
+# fin = "testcodes/1.pas"
+# f = open(fin, "r")
+# data = f.read()
+# kk = Parser.parse(data)
+# temp_data = json.dumps(kk)
+# f2 = open("res.json", "w")
+# f2.write(temp_data)
+# f2.close()
