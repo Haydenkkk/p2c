@@ -150,7 +150,9 @@ class Scanner(object):
 
     # 则式匹配COMMENT，更新行号，保存COMMENT内容
     def t_COMMENT(self, t):
-        # 匹配左边的 { , 接着匹配零个或多个匹配项，每个匹配项可以是以下两种之一：
+        # r"{(?:.|\n)*?}"
+        # 匹配左边的 {。
+        # 接着匹配零个或多个匹配项，每个匹配项可以是以下两种之一：
         # [^{}]：表示匹配除了 { 和 } 之外的任意字符。也就是匹配单个非括号字符。
         # \{[^{}]*\}：表示匹配以 { 开头、以 } 结尾的一段字符串，中间不能包含 { 和 }。这是一个递归的过程，可以匹配多层的嵌套注释。
         # 最后匹配右边的 }。
@@ -208,15 +210,15 @@ class Scanner(object):
         t.lexer.skip(1)
 
 
-scanner = Scanner()
-scanner.build()
-fin = "testcodes/1.pas"
-f = open(fin, "r")
-data = f.read()
-scanner.input(data)
-while True:
-    tok = scanner.token()
-    if not tok:
-        break
-    print(tok)
+# scanner = Scanner()
+# scanner.build()
+# fin = "testcodes/1.pas"
+# f = open(fin, "r")
+# data = f.read()
+# scanner.input(data)
+# while True:
+#     tok = scanner.token()
+#     if not tok:
+#         break
+#     print(tok)
 # print(scanner.comment)
