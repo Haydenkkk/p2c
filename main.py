@@ -14,9 +14,7 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 @app.route('/p2c', methods=['post'])
 def p2c():
     data = request.json
-    Parser = pParser()
-    res = Parser.parse(data)
-    print(data)
+    
     return jsonify(res)
 
 

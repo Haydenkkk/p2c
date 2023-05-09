@@ -30,7 +30,6 @@ class Scanner(object):
         "FOR",
         "DO",
         "UMINUS",
-        "RECORD",
         "OF",
         "NUM",
         "EQUAL",
@@ -80,7 +79,6 @@ class Scanner(object):
         "REAL",
         "PROCEDURE",
         "FOR",
-        "RECORD",
         "OF",
         "CONST",
         "TO",
@@ -101,7 +99,7 @@ class Scanner(object):
     t_INTEGER = r"(?i)INTEGER"
     t_CHAR = r"(?i)CHAR"
     t_ARRAY = r"(?i)ARRAY"
-    t_RECORD = r"(?i)RECORD"
+    # t_RECORD = r"(?i)RECORD"
     # 赋值
     t_ASSIGNOP = r":="
     # 标点符
@@ -213,7 +211,7 @@ class Scanner(object):
 # scanner = Scanner()
 # scanner.build()
 # fin = "testcodes/1.pas"
-# f = open(fin, "r")
+# f = open(fin, 'r', encoding='utf-8')
 # data = f.read()
 # scanner.input(data)
 # while True:
