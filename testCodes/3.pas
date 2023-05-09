@@ -2,7 +2,7 @@
 program range (input, output) ;
 var
     x, y : integer;
-procedure p;
+procedure p();
 var
     x, z :integer;
 begin

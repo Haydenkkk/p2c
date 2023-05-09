@@ -150,11 +150,11 @@ class pParser(object):
                 p[0] = {"length": len(p), "type": "idlist", "ids": p[1]["ids"] + [p[3]]}
                 # 在 subSymbol 中已经存在或存在于 curSymbol 中
                 if p[3] in list(symbol_table.keys()):
-                    report_error("变量重复定义", p.lexer.lineno, [p[3]], p.lexer.lexpos, p.slice[3].lexpos + p.slice[3].lineno - 1 + len(p[3]))
+                    report_error("Duplicate lable or redefininy symbol that cannot be redefined.", p.lexer.lineno, [p[3]], p.lexer.lexpos, p.slice[3].lexpos + p.slice[3].lineno - 1 + len(p[3]))
             else:
                 p[0] = {"length": len(p), "type": "idlist", "ids": [p[1]]}
                 if p[1] in list(symbol_table.keys()):
-                    report_error("变量重复定义", p.lexer.lineno, [p[1]], p.lexer.lexpos, p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1]))
+                    report_error("Duplicate lable or redefininy symbol that cannot be redefined.", p.lexer.lineno, [p[1]], p.lexer.lexpos, p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1]))
 
 
         def p_const_declarations(p):
@@ -193,11 +193,11 @@ class pParser(object):
             # 将 ID const_value 加入symbolMap，self.id 为 key，通过 id 直接获取符号表信息
             self.symbolMap[self.id] = symbol_entry
             self.id += 1
-            # 判断变量重复定义
+            # 判断Duplicate lable or redefininy symbol that cannot be redefined.
             if self.inSubFun and p[3] in list(self.subSymbol.keys()):
-                report_error("变量重复定义", p.lexer.lineno, [p[3]], p.lexer.lexpos)
+                report_error("Duplicate lable or redefininy symbol that cannot be redefined.", p.lexer.lineno, [p[3]], p.lexer.lexpos)
             elif not self.inSubFun and p[3] in list(self.curSymbol.keys()):
-                report_error("变量重复定义", p.lexer.lineno, [p[3]], p.lexer.lexpos)
+                report_error("Duplicate lable or redefininy symbol that cannot be redefined.", p.lexer.lineno, [p[3]], p.lexer.lexpos)
             p[0] = {
                 "length": len(p),
                 "id": self.id,
@@ -218,12 +218,11 @@ class pParser(object):
                 "value": p[3],
                 "positive": is_positive(p[3]["value"]),
             }
-            self.curSymbol[p[1]] = symbol_entry
             self.symbolMap[self.id] = symbol_entry
             self.id += 1
-            # 判断变量重复定义
-            if (self.inSubFun and p[1] in self.subSymbol) or (not self.inSubFun and p[1] in self.curSymbol):
-                report_error("变量重复定义", p.lexer.lineno, [p[1]], p.lexer.lexpos)
+            # 判断是否重复定义
+            if (self.inSubFun and p[1] in self.subSymbol.keys()) or (not self.inSubFun and p[1] in self.curSymbol.keys()):
+                report_error("Duplicate lable or redefininy symbol that cannot be redefined.", p.lexer.lineno, [p[1]], p.lexer.lexpos)
             p[0] = {
                 "length": len(p),
                 "id": self.id,
@@ -398,61 +397,32 @@ class pParser(object):
             if len(p) == 6:
                 # 错误判断
                 if p[3] > p[5]:
-                    # 初始化错误信息
-                    if not self.error:
-                        self.error = []
-                    self.error += [
-                        {
-                            "code": "数组下标下界超过上界",
-                            "info": {
-                                "line": p.slice[3].lineno,
-                                "value": [p[3], p[5]],
-                                "lexpos": p.slice[3].lineno + p.slice[3].lexpos - 1,
-                                "end_lexpos": p.slice[5].lineno
-                                + p.slice[5].lexpos
-                                + len(str(p[5])),
-                            },
-                        }
-                    ]
+                    report_error("The array subscript lower bound exceeds the upper bound", 
+                                 p.slice[3].lineno, [p[3], p[5]], p.slice[3].lineno + p.slice[3].lexpos - 1, p.slice[5].lineno + p.slice[5].lexpos + len(str(p[5])))
                 p[0] = {
                     "length": len(p),
                     "type": "period",
                     "values": p[1]["values"] + [{"start": p[3], "end": p[5]}],
-                }
-                # 更新符号表
-                p[0]["SymbolTable"] = {
-                    "dimension": p[1]["SymbolTable"]["dimension"] + 1,  # 数组维度
-                    "size": p[1]["SymbolTable"]["size"] + [p[5] - p[3] + 1],
-                    "start": p[1]["SymbolTable"]["start"] + [p[3]],
+                    "SymbolTable":{
+                        "dimension": p[1]["SymbolTable"]["dimension"] + 1,  # 数组维度
+                        "size": p[1]["SymbolTable"]["size"] + [p[5] - p[3] + 1],
+                        "start": p[1]["SymbolTable"]["start"] + [p[3]],
+                    }
                 }
             # 产生式2 period -> digits .. digits
             else:
-
                 if p[1] > p[3]:
-                    if not self.error:
-                        self.error = []
-                    self.error += [
-                        {
-                            "code": "数组下标下界超过上界",
-                            "info": {
-                                "line": p.slice[1].lineno,
-                                "value": [p[1], p[3]],
-                                "lexpos": p.slice[1].lineno + p.slice[1].lexpos - 1,
-                                "end_lexpos": p.slice[3].lineno
-                                + p.slice[3].lexpos
-                                + len(str(p[3])),
-                            },
-                        }
-                    ]
+                    report_error("The array subscript lower bound exceeds the upper bound", 
+                                 p.slice[1].lineno, [p[1], p[3]], p.slice[1].lineno + p.slice[1].lexpos - 1, p.slice[3].lineno + p.slice[3].lexpos + len(str(p[3])))
                 p[0] = {
                     "length": len(p),
                     "type": "period",
                     "values": [{"start": p[1], "end": p[3]}],
-                }
-                p[0]["SymbolTable"] = {
-                    "dimension": 1,
-                    "size": [p[3] - p[1] + 1],
-                    "start": [p[1]],
+                    "SymbolTable":{
+                        "dimension": 1,
+                        "size": [p[3] - p[1] + 1],
+                        "start": [p[1]],
+                    }
                 }
 
         def p_subprogram_declarations(p):
@@ -842,29 +812,11 @@ class pParser(object):
                 }
                 if p[2] not in list(self.curSymbol.keys()) and self.inSubFun and p[2] not in list(self.subSymbol.keys()):
                     # ID既不在当前符号表，也不在子函数符号表，变量未定义
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "给未定义的变量赋值",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[2]],
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：给未定义的变量赋值
+                    report_error("Assigning values to undefined variables",p.lexer.lineno,[p[2]],p.lexer.lexpos) # 错误类型：给未定义的变量赋值
                 id = self.search_symbol(p[2])
                 if id:
                     if p[4]["__type"] == "UNDEFINED":  # expression未定义
-                        if not self.error:
-                            self.error = []
-                        self.error += [{
-                            "code": "使用未定义的变量进行赋值",
-                            "info": {
-                                "line": p.lexer.lineno,
-                                "value": [p[2]],
-                                "lexpos": p.lexer.lexpos
-                            }
-                        }]  # 错误类型：使用未定义的变量进行赋值
+                        report_error("Assigning values using undefined variables",p.lexer.lineno,[p[2]],p.lexer.lexpos) # 错误类型：使用未定义的变量进行赋值
                     elif not p[4]["__type"] or id["type"] not in safe_assign[p[4]["__type"]]:  # 不是安全赋值类型
                         if p[4]["__type"] and id["type"] in warn_assign[p[4]["__type"]]:  # 属于warn复制类型
                             if not self.warning:
@@ -878,16 +830,8 @@ class pParser(object):
                                 }
                             }]  # 警告类型：变量赋值类型不匹配，转换可能造成数据丢失
                         else:  # 错误赋值
-                            if not self.error:
-                                self.error = []
-                            self.error += [{
-                                "code": "变量赋值类型不匹配",
-                                "info": {
-                                    "line": p.slice[3].lineno,
-                                    "value": [p[2], id["type"] if id["type"] else "VOID", p[4]["__type"] if p[4]["__type"] else "VOID"],
-                                    "lexpos": p.slice[3].lexpos + p.slice[3].lineno - 1
-                                }
-                            }]  # 错误类型：变量赋值类型不匹配，且不能转换
+                            report_error("The variable assignment type does not match and cannot be converted",p.slice[3].lineno, [p[2], id["type"] if id["type"] else "VOID", p[4]["__type"] if p[4]["__type"] else "VOID"],p.slice[3].lexpos + p.slice[3].lineno - 1)
+                            # 错误类型：变量赋值类型不匹配，且不能转换
             #  statement : READ LPAREN variable_list  RPAREN
             elif not type(p[1]) == dict and p[1].upper() == 'READ':
                 p[0] = {
@@ -924,28 +868,10 @@ class pParser(object):
                     "expression": p[3]
                 }
                 if p[1]["__type"] == "UNDEFINED":  # variable未定义
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "给未定义的变量赋值",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[1]["ID"]],
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：给未定义的变量赋值
+                    report_error("Assigning values to undefined variables",p.lexer.lineno,[p[1]["ID"]],p.lexer.lexpos) # 错误类型：给未定义的变量赋值
                 id = self.search_symbol(p[1]["ID"])  # 获取变量id
                 if p[3]["__type"] == "UNDEFINED":  # expression未定义
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "使用未定义的变量进行赋值",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[1]["ID"]],
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：使用未定义的变量进行赋值
+                    report_error("Assigning values using undefined variables",p.lexer.lineno, [p[1]["ID"]],p.lexer.lexpos) # 错误类型：使用未定义的变量进行赋值
                 elif id:  # 找到id
                     if not p[3]["__type"] or id["type"] not in safe_assign[p[3]["__type"]]:
                         if p[3]["__type"] and id["type"] in warn_assign[p[3]["__type"]]:
@@ -960,28 +886,10 @@ class pParser(object):
                                 }
                             }]  # 警告类型：变量赋值类型不匹配，转换可能造成数据丢失
                         else:
-                            if not self.error:
-                                self.error = []
-                            self.error += [{
-                                "code": "变量赋值类型不匹配",
-                                "info": {
-                                    "line": p.slice[2].lineno,
-                                    "value": [p[1]["ID"], id["type"] if id["type"] else "VOID", p[3]["__type"] if p[3]["__type"] else "VOID"],
-                                    "lexpos": p.slice[2].lexpos + p.slice[2].lineno - 1
-                                }
-                            }]  # 错误类型：变量赋值类型不匹配，且不能转换
+                            report_error("The variable assignment type does not match and cannot be converted",p.slice[2].lineno,[p[1]["ID"], id["type"] if id["type"] else "VOID", p[3]["__type"] if p[3]["__type"] else "VOID"], p.slice[2].lexpos + p.slice[2].lineno - 1)
+                            # 错误类型：变量赋值类型不匹配，且不能转换
                 else:
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "给未定义的变量赋值",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[1]["ID"]],
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：给未定义的变量赋值
-            #  statement : procedure_call
+                    report_error("Assigning values to undefined variables",p.lexer.lineno, [p[1]["ID"]],p.lexer.lexpos) # 错误类型：给未定义的变量赋值
             elif p[1]["type"] == "procedure_call":
                 p[0] = {
                     "length": len(p),
@@ -1033,63 +941,8 @@ class pParser(object):
             }
             if type(p[1]) == str and p[1] not in list(self.curSymbol.keys()) and not (self.inSubFun and p[1] in list(self.subSymbol.keys())):
                 # 如果ID是字符串但未定义
-                if not self.error:
-                    self.error = []
-                self.error += [{
-                    "code": "使用的变量未定义",
-                    "info": {
-                        "line": p.slice[1].lineno,
-                        "value": [p[1]],
-                        "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                        "end_lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1])
-                    }
-                }]  # 错误类型：使用的变量未定义（变量标识符）
-            elif type(p[1]) == list:  # 如果ID是list，则为record
-                possiable_token = list(self.curSymbol.keys(
-                )) + (list(self.subSymbol.keys()) if self.inSubFun else [])  # 整合参数表
-                i = p[1][0]  # record名称
-                if i not in possiable_token:
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "使用的变量未定义",
-                        "info": {
-                            "line": p.slice[1].lineno,
-                            "value": [i],
-                            "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                            "end_lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1])
-                        }
-                    }]  # 错误类型：使用的变量未定义
-                elif self.search_symbol(i)["recordTable"]:  # 如果该变量已定义，且它的record存在
-                    possiable_token = [j["token"] for j in self.search_symbol(
-                        i)["recordTable"]["variables"]]  # possiable_token符号表成为该record的变量表
-                    record_table = self.search_symbol(i)["recordTable"]
-                for j in p[1][1:]:  # record内部项
-                    new_possiable_token = []
-                    for record_item in possiable_token:
-                        new_possiable_token += record_item['ids']
-                    possiable_token = new_possiable_token  # 更新possiable_token
-                    if j not in possiable_token:
-                        if not self.error:
-                            self.error = []
-                        self.error += [{
-                            "code": "使用的变量未定义",
-                            "info": {
-                                "line": p.slice[1].lineno,
-                                "value": [j],
-                                "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                                "end_lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1])
-                            }
-                        }]  # 错误类型：使用的变量未定义
-                    # 该项已定义，在recordTable内部查，逐层循环
-                    elif self.search_symbol(j, record_table)["recordTable"]:
-                        possiable_token = [k["token"] for k in self.search_symbol(
-                            j, record_table)["recordTable"]["variables"]]
-                        record_table = self.search_symbol(
-                            j, record_table)["recordTable"]
-                    else:  # 最终层，确定最终该变量类型
-                        p[0]["__type"] = self.search_symbol(
-                            j, record_table)["type"]
+                report_error("The variable used is not defined (variable identifier)",p.slice[1].lineno,[p[1]],p.slice[1].lexpos + p.slice[1].lineno - 1, p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1]))
+                # 错误类型：使用的变量未定义（变量标识符）
 
         def p_id_varpart(p):
             '''
@@ -1117,17 +970,8 @@ class pParser(object):
                     "ID": p[1]
                 }
                 if self.subFuncMap[p[1]]["type"]:
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "函数调用时变量个数不匹配",
-                        "info": {
-                            "line": p.slice[1].lineno,
-                            "value": ["0", len(self.subFuncMap[p[1]]["variables"] if self.subFuncMap[p[1]]["variables"] else [])],
-                            "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                            "end_lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1])
-                        }
-                    }]
+                    report_error("Mismatched number of variables during function call",p.slice[1].lineno, ["0", len(self.subFuncMap[p[1]]["variables"] if self.subFuncMap[p[1]]["variables"] else [])],p.slice[1].lexpos + p.slice[1].lineno - 1,p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1]))
+                #"函数调用时变量个数不匹配
             else:  # procedure_call : ID LPAREN expression_list RPAREN
                 p[0] = {
                     "length": len(p),
@@ -1136,33 +980,15 @@ class pParser(object):
                     "expression_list": p[3]
                 }
                 if len(p[3]["__type"]) != len(self.subFuncMap[p[1]]["variables"] if self.subFuncMap[p[1]]["variables"] else []):  # 变量数量不一致
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "函数调用时变量个数不匹配",
-                        "info": {
-                            "line": p.slice[1].lineno,
-                            "value": [len(p[3]["__type"]), len(self.subFuncMap[p[1]]["variables"] if self.subFuncMap[p[1]]["variables"] else [])],
-                            "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                            "end_lexpos": p.slice[4].lexpos + p.slice[4].lineno + len(p[4])
-                        }
-                    }]  # 错误类型：函数调用时变量个数不匹配
+                    report_error("Mismatched number of variables during function call",p.slice[1].lineno,[len(p[3]["__type"]), len(self.subFuncMap[p[1]]["variables"] if self.subFuncMap[p[1]]["variables"] else [])],p.slice[1].lexpos + p.slice[1].lineno - 1,p.slice[4].lexpos + p.slice[4].lineno + len(p[4]))
+                 #错误类型：函数调用时变量个数不匹配
                 else:  # 函数调用时变量数量一致
                     for i in range(len(p[3]["__type"])):  # 遍历expression_list
                         from_type = p[3]["__type"][i]
                         to_type = self.subFuncMap[p[1]]["variables"][i]["type"]
                         if from_type == "UNDEFINED":
-                            if not self.error:
-                                self.error = []
-                            self.error += [{
-                                "code": "函数调用时参数未定义",
-                                "info": {
-                                    "line": p.slice[1].lineno,
-                                    "value": [from_type, to_type],
-                                    "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                                    "end_lexpos": p.slice[4].lexpos + p.slice[4].lineno + len(p[4])
-                                }
-                            }]  # 错误类型：函数调用时参数未定义
+                            report_error("Parameter undefined during function call",p.slice[1].lineno,[from_type, to_type],p.slice[1].lexpos + p.slice[1].lineno - 1,p.slice[4].lexpos + p.slice[4].lineno + len(p[4]))
+                        # 错误类型：函数调用时参数未定义
                         elif to_type not in safe_assign[from_type]:  # 不属于安全赋值类型
                             if to_type in warn_assign[from_type]:  # 属于warn赋值类型
                                 if not self.warning:
@@ -1174,31 +1000,13 @@ class pParser(object):
                                         "value": [self.subFuncMap[p[1]]["variables"][i]['token'], from_type, to_type],
                                         "lexpos": p.lexer.lexpos
                                     }
-                                }]  # 错误类型：函数调用时参数类型不匹配，转换可能造成数据丢失
+                                }]  # 警告类型：函数调用时参数类型不匹配，转换可能造成数据丢失
                             else:  # 错误复制类型
-                                if not self.error:
-                                    self.error = []
-                                self.error += [{
-                                    "code": "函数调用时参数类型不匹配",
-                                    "info": {
-                                        "line": p.slice[1].lineno,
-                                        "value": [self.subFuncMap[p[1]]["variables"][i]['token'], from_type, to_type],
-                                        "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                                        "end_lexpos": p.slice[4].lexpos + p.slice[4].lineno + len(p[4])
-                                    }
-                                }]  # 错误类型：函数调用时参数类型不匹配，且不能转换
+                                report_error("Parameter type mismatch during function call",p.slice[1].lineno,[self.subFuncMap[p[1]]["variables"][i]['token'], from_type, to_type],p.slice[1].lexpos + p.slice[1].lineno - 1,p.slice[4].lexpos + p.slice[4].lineno + len(p[4]))
+                        # 错误类型：函数调用时参数类型不匹配，且不能转换
                         if self.subFuncMap[p[1]]["references"][i] and not (p[3]["expressions"] and p[3]["expressions"][i] and p[3]["expressions"][i]["length"] == 2 and p[3]["expressions"][i]["simple_expression"]["length"] == 2 and p[3]["expressions"][i]["simple_expression"]["term"]["length"] == 2 and p[3]["expressions"][i]["simple_expression"]["term"]["factor"]["length"] == 2 and p[3]["expressions"][i]["simple_expression"]["term"]["factor"]["_type"] == "variable"):
                             # 判断函数的传参是否正确（expression/variable）
-                            if not self.error:
-                                self.error = []
-                            self.error += [{
-                                "code": "引用调用时使用了无法引用的表达式",
-                                "info": {
-                                    "line": p.slice[1].lineno,
-                                    "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                                    "end_lexpos": p.slice[4].lexpos + p.slice[4].lineno + len(p[4])
-                                }
-                            }]  # 无法翻译错误：引用调用时使用了无法引用的表达式
+                            report_error("An expression that cannot be referenced was used during the reference call",p.slice[1].lineno,"",p.slice[1].lexpos + p.slice[1].lineno - 1,p.slice[4].lexpos + p.slice[4].lineno + len(p[4]))#无法翻译错误：引用调用时使用了无法引用的表达式
 
         def p_else_part(p):
             '''
@@ -1254,26 +1062,8 @@ class pParser(object):
                 }
                 # simple_expression中的标识符未定义
                 if p[1]["__type"] == "UNDEFINED" or p[3]["__type"] == "UNDEFINED":
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "对未定义的变量进行比较",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：对未定义的变量进行比较
+                    report_error("Compare undefined variables",p.lexer.lineno,"",p.lexer.lexpos)
                 # simple_expression中的标识符类型为RECODRD
-                elif p[1]["__type"] == "RECORD" or p[3]["__type"] == "RECORD":
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "对RECORD类型进行比较",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：对RECORD类型进行比较
             else:  # expression : simple_expression
                 p[0] = {
                     "length": len(p),
@@ -1293,16 +1083,6 @@ class pParser(object):
                 "RELOP": p[2],
                 "simple_expression_2": p[3]
             }
-            if p[1]["__type"] == "RECORD" or p[3]["__type"] == "RECORD":
-                if not self.error:
-                    self.error = []
-                self.error += [{
-                    "code": "对RECORD类型进行比较",
-                    "info": {
-                        "line": p.lexer.lineno,
-                        "lexpos": p.lexer.lexpos
-                    }
-                }]  # 错误类型：对RECORD类型进行比较
 
         def p_simple_expression(p):
             '''
@@ -1319,28 +1099,8 @@ class pParser(object):
                 }
                 # simple_expression或term中标识符未定义
                 if p[1]["__type"] == "UNDEFINED" or p[3]["__type"] == "UNDEFINED":
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "对未定义的变量进行运算",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：对未定义的变量进行运算
+                    report_error("Performing operations on undefined variables",p.lexer.lineno,"",p.lexer.lexpos) # 错误类型：对未定义的变量进行运算
                     p[0]["__type"] = "UNDEFINED"
-                # simple_expression或term中标识符类型为RECORD
-                elif p[1]["__type"] == "RECORD" or p[3]["__type"] == "RECORD":
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "对RECORD类型进行运算",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：对RECORD类型进行运算
-                    p[0]["__type"] = "RECORD"
                 # simple_expression或term中标识符为其它类型
                 elif p[1]["__type"] == "REAL" or p[3]["__type"] == "REAL":
                     p[0]["__type"] = "REAL"
@@ -1351,16 +1111,7 @@ class pParser(object):
                 elif p[1]["__type"] == "BOOLEAN" or p[3]["__type"] == "BOOLEAN":
                     p[0]["__type"] = "BOOLEAN"
                 else:
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "未知类型的运算",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[1]["__type"], p[3]["__type"]],
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：未知类型的运算
+                    report_error("Unknown type of operation",p.lexer.lineno,[p[1]["__type"], p[3]["__type"]], p.lexer.lexpos) # 错误类型：未知类型的运算
                     p[0]["__type"] = "UNDEFINED"
             else:  # simple_expression : term
                 p[0] = {
@@ -1384,27 +1135,8 @@ class pParser(object):
                     "factor": p[3]
                 }
                 if p[1]["__type"] == "UNDEFINED" or p[3]["__type"] == "UNDEFINED":  # term或factor中标识符未定义
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "对未定义的变量进行运算",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：对未定义的变量进行运算
+                    report_error("Performing operations on undefined variables", p.lexer.lineno,"",p.lexer.lexpos) # 错误类型：对未定义的变量进行运算
                     p[0]["__type"] = "UNDEFINED"
-                elif p[1]["__type"] == "RECORD" or p[3]["__type"] == "RECORD":  # term或factor中标识符为RECORD
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "对RECORD类型进行运算",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：对RECORD类型进行运算
-                    p[0]["__type"] = "RECORD"
                 # 标识符为其它类型
                 elif p[1]["__type"] == "REAL" or p[3]["__type"] == "REAL":
                     p[0]["__type"] = "REAL"
@@ -1415,16 +1147,7 @@ class pParser(object):
                 elif p[1]["__type"] == "BOOLEAN" or p[3]["__type"] == "BOOLEAN":
                     p[0]["__type"] = "BOOLEAN"
                 else:
-                    if not self.error:
-                        self.error = []
-                    self.error += [{
-                        "code": "未知类型的运算",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[1]["__type"], p[3]["__type"]],
-                            "lexpos": p.lexer.lexpos
-                        }
-                    }]  # 错误类型：未知类型的运算
+                    report_error("Unknown type of operation",p.lexer.lineno,[p[1]["__type"], p[3]["__type"]],p.lexer.lexpos) # 错误类型：未知类型的运算
                     p[0]["__type"] = "UNDEFINED"
             else:  # term : factor
                 p[0] = {
@@ -1463,9 +1186,6 @@ class pParser(object):
             '''
             factor : ID LPAREN expression_list RPAREN
             '''
-            # print(len(self.subFuncMap))
-            # if self.subFuncMap == {}:
-            #     report_error("函数未定义", p.slice[1].lineno, p.slice[1].lexpos + p.slice[1].lineno - 1)
             p[0] = {
                 "length": len(p),
                 "type": "factor",
@@ -1475,33 +1195,15 @@ class pParser(object):
                 "expression_list": p[3]
             }
             if len(p[3]["__type"]) != len(self.subFuncMap[p[1]]["variables"] if self.subFuncMap[p[1]]["variables"] else []):  # 变量数量不一致
-                if not self.error:
-                    self.error = []
-                self.error += [{
-                    "code": "函数调用时变量个数不匹配",
-                    "info": {
-                        "line": p.slice[1].lineno,
-                        "value": [len(p[3]["__type"]), len(self.subFuncMap[p[1]]["variables"] if self.subFuncMap[p[1]]["variables"] else [])],
-                        "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                        "end_lexpos": p.slice[4].lexpos + p.slice[4].lineno + len(p[4])
-                    }
-                }]  # 错误类型：函数调用时变量个数不匹配
+                report_error("Mismatched number of variables during function call",p.slice[1].lineno, [len(p[3]["__type"]), len(self.subFuncMap[p[1]]["variables"] if self.subFuncMap[p[1]]["variables"] else [])],p.slice[1].lexpos + p.slice[1].lineno - 1,p.slice[4].lexpos + p.slice[4].lineno + len(p[4]))
+                # 错误类型：函数调用时变量个数不匹配
             else:  # 函数调用时变量数量一致
                 for i in range(len(p[3]["__type"])):  # 遍历expression_list
                     from_type = p[3]["__type"][i]
                     to_type = self.subFuncMap[p[1]]["variables"][i]["type"]
                     if from_type == "UNDEFINED":
-                        if not self.error:
-                            self.error = []
-                        self.error += [{
-                            "code": "函数调用时参数未定义",
-                            "info": {
-                                "line": p.slice[1].lineno,
-                                "value": [from_type, to_type],
-                                "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                                "end_lexpos": p.slice[4].lexpos + p.slice[4].lineno + len(p[4])
-                            }
-                        }]  # 错误类型：函数调用时参数未定义
+                        report_error("Parameter undefined during function call",p.slice[1].lineno,[from_type, to_type],p.slice[1].lexpos + p.slice[1].lineno - 1,p.slice[4].lexpos + p.slice[4].lineno + len(p[4]))
+                        # 错误类型：函数调用时参数未定义
                     elif to_type not in safe_assign[from_type]:  # 不属于安全赋值类型
                         if to_type in warn_assign[from_type]:  # 属于warn赋值类型
                             if not self.warning:
@@ -1515,29 +1217,12 @@ class pParser(object):
                                 }
                             }]  # 错误类型：函数调用时参数类型不匹配，转换可能造成数据丢失
                         else:  # 错误复制类型
-                            if not self.error:
-                                self.error = []
-                            self.error += [{
-                                "code": "函数调用时参数类型不匹配",
-                                "info": {
-                                    "line": p.slice[1].lineno,
-                                    "value": [self.subFuncMap[p[1]]["variables"][i]['token'], from_type, to_type],
-                                    "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                                    "end_lexpos": p.slice[4].lexpos + p.slice[4].lineno + len(p[4])
-                                }
-                            }]  # 错误类型：函数调用时参数类型不匹配，且不能转换
+                            report_error("Parameter type mismatch during function call",p.slice[1].lineno,[self.subFuncMap[p[1]]["variables"][i]['token'], from_type, to_type],p.slice[1].lexpos + p.slice[1].lineno - 1, p.slice[4].lexpos + p.slice[4].lineno + len(p[4]))
+                            # 错误类型：函数调用时参数类型不匹配，且不能转换
                     if self.subFuncMap[p[1]]["references"][i] and not (p[3]["expressions"] and p[3]["expressions"][i] and p[3]["expressions"][i]["length"] == 2 and p[3]["expressions"][i]["simple_expression"]["length"] == 2 and p[3]["expressions"][i]["simple_expression"]["term"]["length"] == 2 and p[3]["expressions"][i]["simple_expression"]["term"]["factor"]["length"] == 2 and p[3]["expressions"][i]["simple_expression"]["term"]["factor"]["_type"] == "variable"):
                         # 判断函数的传参是否正确（expression/variable）
-                        if not self.error:
-                            self.error = []
-                        self.error += [{
-                            "code": "引用调用时使用了无法引用的表达式",
-                            "info": {
-                                "line": p.slice[1].lineno,
-                                "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                                "end_lexpos": p.slice[4].lexpos + p.slice[4].lineno + len(p[4])
-                            }
-                        }]  # 无法翻译错误：引用调用时使用了无法引用的表达式
+                        report_error("An expression that cannot be referenced was used during the reference call",p.slice[1].lineno,"",p.slice[1].lexpos + p.slice[1].lineno - 1,p.slice[4].lexpos + p.slice[4].lineno + len(p[4]))
+                       # 无法翻译错误：引用调用时使用了无法引用的表达式
 
         def p_factor_expression(p):
             '''
@@ -1577,19 +1262,9 @@ class pParser(object):
             }
 
         def p_error(p):
-            if not self.error:
-                self.error = []
-            self.error.append(
-                {
-                    "code": "不符合语法定义",
-                    "info": {
-                        "line": p.lineno if p else 0,
-                        "value": [p.value if p else ""],
-                        "lexpos": p.lexpos if p else 0,
-                    },
-                }
-            )  # 错误类型：不符合语法
-
+            report_error("No relevant syntax definition",p.lineno if p else 0,[p.value if p else ""], p.lexpos if p else 0)
+            # 错误类型：不符合语法
+             
         self.parser = yacc(debug=False, write_tables=False)
 
 
