@@ -211,7 +211,7 @@ class Scanner(object):
 # scanner = Scanner()
 # scanner.build()
 # fin = "testcodes/1.pas"
-# f = open(fin, "r")
+# f = open(fin, 'r', encoding='utf-8')
 # data = f.read()
 # scanner.input(data)
 # while True:

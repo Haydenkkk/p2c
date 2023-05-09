@@ -1,0 +1,1 @@
+{"ast": null, "symbolTable": {"constants": [], "variables": [], "subFunc": []}, "error": [{"code": "\u4e0d\u7b26\u5408\u8bed\u6cd5\u5b9a\u4e49", "info": {"line": 14, "value": [":"], "lexpos": 227}}], "warning": [{"code": "\u53d8\u91cf\u8d4b\u503c\u7c7b\u578b\u4e0d\u5339\u914d", "info": {"line": 11, "value": ["a", "BOOLEAN", "INTEGER"], "lexpos": 173}}]}

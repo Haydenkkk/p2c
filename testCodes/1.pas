@@ -1,11 +1,20 @@
-program example(input,output);
-    var x,y:integer;
-    function gcd(a,a:integer):integer;
-        begin 
-            if b=0 then gcd:=a}
-            else gcd:=gcd(b, a mod b)
-        end;
-    begin
-        read(x, y);
-        write(gcd(x, y))
-    end.
+{ 注释测试 }
+(* 对于多行注释的
+    测试。 *)
+{ 注释测试完毕 }
+{ test1是对于词法
+分析的错误测试 }
+Program example(input, output);
+const
+    pi314159265253897932384626433832795=3.1415;
+    { 过长标识符 }
+var
+    r,l:real;
+    s!@：real;
+    { 非法符号 }
+begin
+    read(r);
+    l:=2*pi314159265253897932384626433832795*r;
+    s:=pi314159265253897932384626433832795*r*r;
+    write(l,s);
+end.
