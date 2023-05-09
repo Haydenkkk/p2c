@@ -1,7 +1,7 @@
 import json
 
-ifile = open('testResults/knapsack.pas.json', 'r')
-ofile = open('testResults/knapsack.c', 'w')
+ifile = open('testResults/5.pas.json', 'r')
+ofile = open('testResults/5.c', 'w')
 dfile = open('debug.txt', 'w+')
 
 FUNC_PREFIX = '__func_'
