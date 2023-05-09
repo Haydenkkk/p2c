@@ -58,6 +58,7 @@ class Output:
 
         inFor = 0
         tabCount = 0
+        result = ""
         for line in temp:
             if len(line) == 0:
                 continue
@@ -74,11 +75,12 @@ class Output:
                 line = '\t' * tabCount + line
             if (line[-1] == '{'):
                 tabCount += 1
-
+            
+            result += f"{line}\n" if (inFor == 0 or inFor == 1) else f"{line} "
             print(line, file=ofile, flush=True, end='\n' if (inFor == 0 or inFor == 1) else ' ')
             if inFor > 0:
                 inFor -= 1
-
+        return result
 
 # base class
 class Node:

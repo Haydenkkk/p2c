@@ -1,22 +1,24 @@
 import json
 
+# ifile = open('testResults/6.pas.json', 'r')
+# ofile = open('testResults/6.c', 'w')
+dfile = open('debug.txt', 'w+')
+
 FUNC_PREFIX = '__func_'
 
-# static class
-FUNC_PREFIX = '__func_'
 
 # static class
 class Util:
     # convert a pascal-styled type to a C-styled type
     @staticmethod
     def ConvertType(rawType):
-        if rawType == 'INTEGER':
+        if rawType in ['INTEGER', 'DIGITS']:
             return 'int'
         if rawType == 'BOOLEAN':
             return 'bool'
         if rawType == 'CHAR':
             return 'char'
-        if rawType == "REAL":
+        if rawType in ['REAL', 'NUM']:
             return 'double'
         print(rawType, file=dfile, flush=True)
 
@@ -51,34 +53,48 @@ class Output:
     @staticmethod
     def FormatOutput():
         # print(Output.rawOutput.replace(';', ';\n').replace(') {', ') {\n'))
-        temp = Output.rawOutput.replace(';', ';\n').replace(') {', ') {\n').replace('}', '}\n')\
+        temp = Output.rawOutput.replace(';', ';\n').replace(') {', ') {\n').replace('}', '}\n') \
             .replace('else {', 'else {\n').split('\n')
 
+        inFor = 0
         tabCount = 0
+        result = ""
         for line in temp:
             if len(line) == 0:
                 continue
             line = line.strip()
-            if(line == ';'):
+            if (line == ';'):
                 continue
 
-            if(line[-1] == '}'):
-                tabCount -= 1
-            line = '\t' * tabCount + line
-            if(line[-1] == '{'):
-                tabCount += 1
-            print(line, file=ofile, flush=True)
+            if len(line) >= 3 and line[:3] == 'for':
+                inFor = 3
 
+            if (line[-1] == '}'):
+                tabCount -= 1
+            if inFor == 0 or inFor == 3:
+                line = '\t' * tabCount + line
+            if (line[-1] == '{'):
+                tabCount += 1
+            result += f"{line}\n" if (inFor == 0 or inFor == 1) else f"{line} "
+            # print(line, file=ofile, flush=True, end='\n' if (inFor == 0 or inFor == 1) else ' ')
+            if inFor > 0:
+                inFor -= 1
+        return result
 
 # base class
 class Node:
     def __init__(self, tree):
         self.tree = tree
-        self.child = []
         self.ret = None  # return value
 
     def Parse(self):
         pass
+
+
+class ListNode(Node):
+    def __init__(self, tree):
+        super().__init__(tree)
+        self.child = []
 
     def ParseChildByOrder(self):
         for node in self.child:
@@ -107,18 +123,22 @@ class ProgramBodyNode(Node):
         self.head = head
 
     def Parse(self):
-        self.child.append(ConstDeclarationsNode(self.tree['const_declarations']))
-        self.child.append(VarDeclarationsNode(self.tree['var_declarations']))
-        self.child.append(SubprogramDeclarationsNode(self.tree['subprogram_declarations']))
-        self.child.append(CompoundStatementNode(self.tree['compound_statement']))
-        self.ParseChildByOrder()
+        constDeclarations = ConstDeclarationsNode(self.tree['const_declarations'])
+        varDeclarations = VarDeclarationsNode(self.tree['var_declarations'])
+        subprogramDeclarations = SubprogramDeclarationsNode(self.tree['subprogram_declarations'])
+        compoundStatement = CompoundStatementNode(self.tree['compound_statement'])
+        constDeclarations.Parse()
+        varDeclarations.Parse()
+        subprogramDeclarations.Parse()
+        compoundStatement.Parse()
 
-        body = self.child[3].ret
+        body = compoundStatement.ret
         body = self.head + ' {' + body + 'return 0;}'
         # print(body, file=ofile, flush=True)
         Output.AppendOutput(body)
 
-class ConstDeclarationsNode(Node):
+
+class ConstDeclarationsNode(ListNode):
     def Parse(self):
         if self.tree == None:
             return
@@ -134,12 +154,12 @@ class ConstValue(Node):
     def Parse(self):
         id = self.tree['ID']
         value = self.tree['const_value']['value']
-        type = 'char' if self.tree['const_value']['value'] else 'int'
-        print('const {0} {1} = {2};'.format(type, id, value), file=ofile, flush=True)
+        type = Util.ConvertType(self.tree['const_value']['_type'])
+        # print('const {0} {1} = {2};'.format(type, id, value), file=ofile, flush=True)
         Output.AppendOutput('const {0} {1} = {2};'.format(type, id, value))
 
 
-class VarDeclarationsNode(Node):
+class VarDeclarationsNode(ListNode):
     def Parse(self):
         if self.tree == None:
             return
@@ -182,9 +202,9 @@ class VarValueNode(Node):
             result = '{0} {1};'.format(type, ','.join(idlist))
 
         elif self.tree['type']['_type'] == 'RECORD':
-            self.child.append(MultypeNode(self.tree['type']['multype']))
-            self.child[0].Parse()
-            result = '{0} {1};'.format(self.child[0].structName, ','.join(idlist))
+            multype = MultypeNode(self.tree['type']['multype'])
+            multype.Parse()
+            result = '{0} {1};'.format(multype.structName, ','.join(idlist))
 
         if self.output:
             # print(result, file=ofile, flush=True)
@@ -193,7 +213,7 @@ class VarValueNode(Node):
             return result
 
 
-class MultypeNode(Node):
+class MultypeNode(ListNode):
     # use to name a struct
     structCount = 0
 
@@ -222,7 +242,7 @@ class MultypeNode(Node):
 
 
 # output = false
-class ParameterListNode(Node):
+class ParameterListNode(ListNode):
 
     # return example: int a, int& b
     # without brackets
@@ -241,10 +261,10 @@ class ParameterNode(Node):
     def Parse(self):
         isRefParam = self.tree['value']['type'] == 'var_parameter'
 
-        type = Util.ConvertType(self.tree['value']['value_parameter']['basic_type']['_type']) if isRefParam\
+        type = Util.ConvertType(self.tree['value']['value_parameter']['basic_type']['_type']) if isRefParam \
             else Util.ConvertType(self.tree['value']['basic_type']['_type'])
 
-        idlist = self.tree['value']['value_parameter']['idlist']['ids'] if isRefParam\
+        idlist = self.tree['value']['value_parameter']['idlist']['ids'] if isRefParam \
             else self.tree['value']['idlist']['ids']
 
         if isRefParam:
@@ -256,7 +276,7 @@ class ParameterNode(Node):
 
 # SUB PROGRAM DEFINITIONS
 
-class SubprogramDeclarationsNode(Node):
+class SubprogramDeclarationsNode(ListNode):
     def Parse(self):
         for treeNode in self.tree['subprograms']:
             self.child.append(SubprogramDeclarationNode(treeNode))
@@ -282,8 +302,8 @@ class SubprogramHeadNode(Node):
 
         params = ''
         if self.tree['formal_parameter']:
-            self.child.append(ParameterListNode(self.tree['formal_parameter']['parameter_list']))
-            params = self.child[0].Parse()
+            parameterList = ParameterListNode(self.tree['formal_parameter']['parameter_list'])
+            params = parameterList.Parse()
         # add prefix __func_ to identify with the return value
         self.ret = '{0} {1}({2})'.format(retType, id, params)
 
@@ -294,12 +314,14 @@ class SubprogramBodyNode(Node):
         self.head = head
 
     def Parse(self):
-        self.child.append(ConstDeclarationsNode(self.tree['const_declarations']))
-        self.child.append(VarDeclarationsNode(self.tree['var_declarations']))
-        self.child.append(CompoundStatementNode(self.tree['compound_statement']))
-        self.ParseChildByOrder()
+        constDeclarations = ConstDeclarationsNode(self.tree['const_declarations'])
+        varDeclarations = VarDeclarationsNode(self.tree['var_declarations'])
+        compoundStatement = CompoundStatementNode(self.tree['compound_statement'])
+        constDeclarations.Parse()
+        varDeclarations.Parse()
+        compoundStatement.Parse()
 
-        body = self.child[2].ret
+        body = compoundStatement.ret
         if self.head[:4] != 'void':
             temp = self.head[:self.head.index('(')].split()
             temp[1] = temp[1].replace(FUNC_PREFIX, '')
@@ -310,7 +332,7 @@ class SubprogramBodyNode(Node):
         Output.AppendOutput(body)
 
 
-class CompoundStatementNode(Node):
+class CompoundStatementNode(ListNode):
     def __init__(self, tree):
         super().__init__(tree)
         self.ret = ''
@@ -351,12 +373,15 @@ class StatementNode(Node):
             # statement -> if expression then statement else_part
             expression = ExpressionNode(self.tree['expression'])
             statement = StatementNode(self.tree['statement'])
-            elseStatement = StatementNode(self.tree['else_part']['statement'])
             expression.Parse()
             statement.Parse()
-            elseStatement.Parse()
-            self.ret = 'if({0}) {{ {1} }} else {{ {2} }}'.format(expression.ret['result'],
-                                                                    statement.ret, elseStatement.ret)
+            if self.tree['else_part']['statement']:
+                elseStatement = StatementNode(self.tree['else_part']['statement'])
+                elseStatement.Parse()
+                self.ret = 'if({0}) {{ {1} }} else {{ {2} }}'.format(expression.ret['result'],
+                                                                 statement.ret, elseStatement.ret)
+            else:
+                self.ret = 'if({0}) {{ {1} }}'.format(expression.ret['result'], statement.ret)
 
         elif statementType == 'FOR':
             # statement -> for id assignop expression to to_expression do do_expression
@@ -371,10 +396,10 @@ class StatementNode(Node):
             expression.Parse()
             to_expression.Parse()
             do_expression.Parse()
-            self.ret = 'for(int {0} {1} {2}; {0} <= {3};) {{ {4} }})'.format(id, assignop,
-                                                                               expression.ret['result'],
-                                                                               to_expression.ret['result'],
-                                                                               do_expression.ret)
+            self.ret = 'for(int {0} {1} {2}; {0} <= {3};) {{ {4} }}'.format(id, assignop,
+                                                                             expression.ret['result'],
+                                                                             to_expression.ret['result'],
+                                                                             do_expression.ret)
 
 
         elif statementType == 'READ':
@@ -386,7 +411,7 @@ class StatementNode(Node):
             idArr = []
             for i in variableList.ret:
                 typeArr.append(Util.ToIOForm(i['type']))
-                idArr.append(i['id'])
+                idArr.append('&' + i['id'])
             self.ret = 'scanf("{0}", {1});'.format(''.join(typeArr), ', '.join((idArr)))
 
         elif statementType == 'WRITE':
@@ -410,7 +435,7 @@ class ProcedureCallNode(Node):
         self.ret = '{0}({1});'.format(id, ','.join(map(lambda x: x['result'], expressionList.ret)))
 
 
-class ExpressionListNode(Node):
+class ExpressionListNode(ListNode):
     # return a list of dict containing result and type
     # e.g. ret = [{'result', 'type'}]
     def __init__(self, tree):
@@ -520,7 +545,7 @@ class FactorNode(Node):
             self.ret = '-(' + factor.ret + ')'
 
 
-class VariableListNode(Node):
+class VariableListNode(ListNode):
     # return [{'id', 'type'}], 返回一个list, 仅用于read(), write()
     def __init__(self, tree):
         super().__init__(tree)
@@ -546,41 +571,9 @@ class VariableNode(Node):
             id += '[' + ']['.join(map(lambda x: x['result'], expressionList.ret)) + ']'
         self.ret = {'id': id, 'type': type}
 
-# def test():
-#     Parser = pParser()
-#     current_path = os.path.dirname(os.path.abspath(__file__))
-#     # 构造数据文件夹的路径
-#     test_path = os.path.join(current_path, "testcodes")
-#     # 遍历文件夹中的所有文件
-#     for file_name in os.listdir(test_path):
-#         file_path = os.path.join(test_path, file_name)
-#         with open(file_path, "r", encoding='utf-8') as f:
-#             data = f.read()
-#             f.close()
-#             res=json.dumps(Parser.parse(data))
-#             with open(os.path.join('testResults', '{}.json'.format(file_name)), 'w') as fi:
-#                 fi.write(res)
-#             fi.close()
-#         tree = json.loads(res)['ast']
-#         if tree==None:
-#             continue
-#         ofile = open('testResults/{}.c'.format(file_name), 'w')
-#         program = ProgramStructNode(tree)
-#         program.Parse()
-#         Output.FormatOutput(ofile)
-#         ofile.close()
 
-ifile = open('testresults/knapsack.pas.json', 'r')
-ofile = open('testResults/knapsack.pas.c', 'w')
-tree = json.loads(ifile.read())['ast']
-program = ProgramStructNode(tree)
-program.Parse()
-Output.FormatOutput()
+# tree = json.loads(ifile.read())['ast']
+# program = ProgramStructNode(tree)
+# program.Parse()
 
-
-from Pparser import pParser
-import os
-
-dfile = open('debug.txt', 'w+')
-# test() 
-
+# Output.FormatOutput()
