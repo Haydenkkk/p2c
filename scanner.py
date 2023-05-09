@@ -99,7 +99,6 @@ class Scanner(object):
     t_INTEGER = r"(?i)INTEGER"
     t_CHAR = r"(?i)CHAR"
     t_ARRAY = r"(?i)ARRAY"
-    # t_RECORD = r"(?i)RECORD"
     # 赋值
     t_ASSIGNOP = r":="
     # 标点符
