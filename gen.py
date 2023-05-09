@@ -75,7 +75,7 @@ class Output:
             if (line[-1] == '{'):
                 tabCount += 1
 
-            print(line, file=ofile, flush=True, end='\n' if inFor == 0 or inFor == 1 else ' ')
+            print(line, file=ofile, flush=True, end='\n' if (inFor == 0 or inFor == 1) else ' ')
             if inFor > 0:
                 inFor -= 1
 
@@ -395,7 +395,7 @@ class StatementNode(Node):
             expression.Parse()
             to_expression.Parse()
             do_expression.Parse()
-            self.ret = 'for(int {0} {1} {2}; {0} <= {3};) {{ {4} }})'.format(id, assignop,
+            self.ret = 'for(int {0} {1} {2}; {0} <= {3};) {{ {4} }}'.format(id, assignop,
                                                                              expression.ret['result'],
                                                                              to_expression.ret['result'],
                                                                              do_expression.ret)
@@ -410,7 +410,7 @@ class StatementNode(Node):
             idArr = []
             for i in variableList.ret:
                 typeArr.append(Util.ToIOForm(i['type']))
-                idArr.append(i['id'])
+                idArr.append('&' + i['id'])
             self.ret = 'scanf("{0}", {1});'.format(''.join(typeArr), ', '.join((idArr)))
 
         elif statementType == 'WRITE':
