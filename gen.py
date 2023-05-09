@@ -1,7 +1,7 @@
 import json
 
-ifile = open('testCodes/quickSort.pas', 'r')
-ofile = open('testCodes/quickSort.c', 'w')
+ifile = open('testResults/knapsack.pas.json', 'r')
+ofile = open('testResults/knapsack.c', 'w')
 dfile = open('debug.txt', 'w+')
 
 FUNC_PREFIX = '__func_'
@@ -56,6 +56,7 @@ class Output:
         temp = Output.rawOutput.replace(';', ';\n').replace(') {', ') {\n').replace('}', '}\n') \
             .replace('else {', 'else {\n').split('\n')
 
+        inFor = 0
         tabCount = 0
         for line in temp:
             if len(line) == 0:
@@ -64,12 +65,19 @@ class Output:
             if (line == ';'):
                 continue
 
+            if len(line) >= 3 and line[:3] == 'for':
+                inFor = 3
+
             if (line[-1] == '}'):
                 tabCount -= 1
-            line = '\t' * tabCount + line
+            if inFor == 0 or inFor == 3:
+                line = '\t' * tabCount + line
             if (line[-1] == '{'):
                 tabCount += 1
-            print(line, file=ofile, flush=True)
+
+            print(line, file=ofile, flush=True, end='\n' if inFor == 0 or inFor == 1 else ' ')
+            if inFor > 0:
+                inFor -= 1
 
 
 # base class
@@ -364,12 +372,15 @@ class StatementNode(Node):
             # statement -> if expression then statement else_part
             expression = ExpressionNode(self.tree['expression'])
             statement = StatementNode(self.tree['statement'])
-            elseStatement = StatementNode(self.tree['else_part']['statement'])
             expression.Parse()
             statement.Parse()
-            elseStatement.Parse()
-            self.ret = 'if({0}) {{ {1} }} else {{ {2} }}'.format(expression.ret['result'],
+            if self.tree['else_part']['statement']:
+                elseStatement = StatementNode(self.tree['else_part']['statement'])
+                elseStatement.Parse()
+                self.ret = 'if({0}) {{ {1} }} else {{ {2} }}'.format(expression.ret['result'],
                                                                  statement.ret, elseStatement.ret)
+            else:
+                self.ret = 'if({0}) {{ {1} }}'.format(expression.ret['result'], statement.ret)
 
         elif statementType == 'FOR':
             # statement -> for id assignop expression to to_expression do do_expression
