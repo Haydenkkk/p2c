@@ -8,37 +8,78 @@ class pParser(object):
     error = []
     warning = []
     subSymbol = {}
+    # 用于记录当前程序块的符号表信息
     curSymbol = {}
+    # 用于记录各个符号在符号表中的位置信息
     symbolMap = {}
     subFuncMap = {}
     SymbolTable = {"constants": [], "variables": [], "subFunc": []}
     inSubFun = False
     parser = None
     lexer = None
-    safe_assign = {
-            'INTEGER': ['INTEGER', 'REAL'],
-            'REAL': ['REAL'],
-            'CHAR': ['CHAR', 'INTEGER', 'REAL'],
-            'BOOLEAN': ['BOOLEAN', 'INTEGER', 'REAL', 'CHAR'],
-            'RECORD': ['RECORD']
-        }
-
-    # 定义产生Warning的赋值情况，如 CHAR数据类型的值赋值给BOOLEAN变量时会产生warning
-    warn_assign = {
-        'INTEGER': ['CHAR', 'BOOLEAN'],
-        'REAL': ['CHAR', 'BOOLEAN', 'INTEGER'],
-        'CHAR': ['BOOLEAN'],
-        'BOOLEAN': [],
-        'RECORD': []
-    }
+    
 
     def __init__(self):
         self.scanner = Scanner()
         self.scanner.build()
         self.lexer = self.scanner.lexer
         tokens = self.scanner.tokens
-        safe_assign = self.safe_assign
-        warn_assign = self.warn_assign
+        safe_assign = {
+            'INTEGER': ['INTEGER', 'REAL'],
+            'REAL': ['REAL'],
+            'CHAR': ['CHAR', 'INTEGER', 'REAL'],
+            'BOOLEAN': ['BOOLEAN', 'INTEGER', 'REAL', 'CHAR'],
+        }
+
+        # 定义产生Warning的赋值情况，如 CHAR数据类型的值赋值给BOOLEAN变量时会产生warning
+        warn_assign = {
+            'INTEGER': ['CHAR', 'BOOLEAN'],
+            'REAL': ['CHAR', 'BOOLEAN', 'INTEGER'],
+            'CHAR': ['BOOLEAN'],
+            'BOOLEAN': [],
+        }
+
+        def report_error(error_code, lineno, values, lexpos, endLexpos=None):
+            # Report an error with the specified code, line number, values, and lexical position
+            if not self.error:
+                self.error = []
+            if endLexpos:
+                self.error.append(
+                    {
+                    "code": error_code,
+                    "info": {
+                        "line": lineno,
+                        "value": values,
+                        "lexpos": lexpos,
+                        "end_lexpos": endLexpos
+                        }
+                    }
+                )
+            else:
+                self.error.append(
+                    {
+                    "code": error_code,
+                    "info": {
+                        "line": lineno,
+                        "value": values,
+                        "lexpos": lexpos
+                        }
+                    }
+                )
+
+
+        def get_type(value):
+            # Determine the type of the constant
+            if type(value) == int:
+                return "INTEGER"
+            elif type(value) == float:
+                return "REAL"
+            else:
+                return "CHAR"
+
+        def is_positive(value):
+            # Check if the value is a positive integer or float
+            return type(value) != str and value > 0
 
         def p_programstruct(p):
             """
@@ -91,258 +132,107 @@ class pParser(object):
                 "var_declarations": p[2],
                 "subprogram_declarations": p[3],
                 "compound_statement": p[4],
-            }
-            # 符号表信息自底向上生成，考虑 const_declarations var_declarations subprogram_declaration 为 ε 的情况
-            p[0]["SymbolTable"] = {
-                "constants": p[1]["SymbolTable"] if p[1] else [],
-                "variables": p[2]["SymbolTable"] if p[2] else [],
-                "subFunc": p[3]["SymbolTable"] if p[3] else [],
+                # 符号表信息自底向上生成，考虑 const_declarations var_declarations subprogram_declaration 为 ε 的情况
+                "SymbolTable":{
+                    "constants": p[1]["SymbolTable"] if p[1] else [],
+                    "variables": p[2]["SymbolTable"] if p[2] else [],
+                    "subFunc": p[3]["SymbolTable"] if p[3] else [],
+                }
             }
 
         def p_idlist(p):
             """
             idlist : idlist COM ID
+                    | ID
             """
-            p[0] = {"length": len(p), "type": "idlist", "ids": p[1]["ids"] + [p[3]]}
-            # 当前在子函数内部，ID 在 subSymbol 中已经存在
-            if self.inSubFun and p[3] in list(self.subSymbol.keys()) and p[3]:
-                if not self.error:
-                    self.error = []
-                # 标记错误，变量重复定义
-                self.error.append(
-                    {
-                        "code": "C-03",
-                        "info": {
-                            "line": p.slice[3].lineno,
-                            "value": [p[3]],
-                            "lexpos": p.slice[3].lexpos + p.slice[3].lineno - 1,
-                            "end_lexpos": p.slice[3].lexpos
-                            + p.slice[3].lineno
-                            - 1
-                            + len(p[3]),
-                        },
-                    }
-                )
-            # ID 已存在于 curSymbol
-            elif not self.inSubFun and p[3] in list(self.curSymbol.keys()) and p[3]:
-                if not self.error:
-                    self.error = []
-                # 标记错误，变量重复定义
-                self.error.append(
-                    {
-                        "code": "C-03",
-                        "info": {
-                            "line": p.slice[3].lineno,
-                            "value": [p[3]],
-                            "lexpos": p.slice[3].lexpos + p.slice[3].lineno - 1,
-                            "end_lexpos": p.slice[3].lexpos
-                            + p.slice[3].lineno
-                            - 1
-                            + len(p[3]),
-                        },
-                    }
-                )
+            symbol_table = self.subSymbol if self.inSubFun else self.curSymbol
+            if len(p)==4:
+                p[0] = {"length": len(p), "type": "idlist", "ids": p[1]["ids"] + [p[3]]}
+                # 在 subSymbol 中已经存在或存在于 curSymbol 中
+                if p[3] in list(symbol_table.keys()):
+                    report_error("变量重复定义", p.lexer.lineno, [p[3]], p.lexer.lexpos, p.slice[3].lexpos + p.slice[3].lineno - 1 + len(p[3]))
+            else:
+                p[0] = {"length": len(p), "type": "idlist", "ids": [p[1]]}
+                if p[1] in list(symbol_table.keys()):
+                    report_error("变量重复定义", p.lexer.lineno, [p[1]], p.lexer.lexpos, p.slice[1].lexpos + p.slice[1].lineno - 1 + len(p[1]))
 
-        def p_idlist_id(p):
-            """
-            idlist : ID
-            """
-            p[0] = {"length": len(p), "type": "idlist", "ids": [p[1]]}
-            # 判断变量是否重复定义，同上
-            if self.inSubFun and p[1] in list(self.subSymbol.keys()) and p[1]:
-                if not self.error:
-                    self.error = []
-                self.error.append(
-                    {
-                        "code": "C-03",
-                        "info": {
-                            "line": p.slice[1].lineno,
-                            "value": [p[1]],
-                            "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                            "end_lexpos": p.slice[1].lexpos
-                            + p.slice[1].lineno
-                            - 1
-                            + len(p[1]),
-                        },
-                    }
-                )
-            elif not self.inSubFun and p[1] in list(self.curSymbol.keys()) and p[1]:
-                if not self.error:
-                    self.error = []
-                self.error.append(
-                    {
-                        "code": "C-03",
-                        "info": {
-                            "line": p.slice[1].lineno,
-                            "value": [p[1]],
-                            "lexpos": p.slice[1].lexpos + p.slice[1].lineno - 1,
-                            "end_lexpos": p.slice[1].lexpos
-                            + p.slice[1].lineno
-                            - 1
-                            + len(p[1]),
-                        },
-                    }
-                )
 
         def p_const_declarations(p):
             """
             const_declarations : CONST const_declaration SEMICOLON
                             |
             """
-            # 产生式1 const_declarations -> const const_declaration ;
             if len(p) == 4:
                 p[0] = {
                     "length": len(p),
                     "type": "const_declarations",
                     "const_declaration": p[2],
+                    # 符号表由 产生式右侧 const_declaration 获取
+                    "SymbolTable": p[2]["SymbolTable"]
                 }
-
-                # 符号表由 产生式右侧 const_declaration 获取
-                p[0]["SymbolTable"] = p[2]["SymbolTable"]
-
                 # 不在子函数中，在 curSymbol 创建一个 map，把 token 作为 key， id 作为 value
                 if not self.inSubFun:
-                    self.curSymbol = {}
-                    for i in p[0]["SymbolTable"]:
-                        self.curSymbol[i["token"]] = i["id"]
+                    self.curSymbol = {i["token"]: i["id"] for i in p[0]["SymbolTable"]}
                 # 在子函数内部，在 subSymbol 创建同上 map
                 else:
-                    for i in p[0]["SymbolTable"]:
-                        self.subSymbol[i["token"]] = i["id"]
+                    self.subSymbol.update({i["token"]: i["id"] for i in p[0]["SymbolTable"]})
             else:
-                # 产生式2 const_declarations ->  ε
                 p[0] = None
 
         def p_const_declaration(p):
             """
             const_declaration : const_declaration SEMICOLON ID EQUAL const_value
             """
+            symbol_entry = {
+                "id": self.id,
+                "token": p[3],
+                "type": get_type(p[5]["value"]),
+                "value": p[5],
+                "positive": is_positive(p[5]["value"]),
+            }
+            # 将 ID const_value 加入symbolMap，self.id 为 key，通过 id 直接获取符号表信息
+            self.symbolMap[self.id] = symbol_entry
+            self.id += 1
+            # 判断变量重复定义
+            if self.inSubFun and p[3] in list(self.subSymbol.keys()):
+                report_error("变量重复定义", p.lexer.lineno, [p[3]], p.lexer.lexpos)
+            elif not self.inSubFun and p[3] in list(self.curSymbol.keys()):
+                report_error("变量重复定义", p.lexer.lineno, [p[3]], p.lexer.lexpos)
             p[0] = {
                 "length": len(p),
                 "id": self.id,
                 "type": "const_declaration",
                 "values": p[1]["values"] + [{"ID": p[3], "const_value": p[5]}],
+                 # 符号表由 产生式右侧 const_declaration 、 ID 与 const_value 获取
+                "SymbolTable": p[1]["SymbolTable"] + [symbol_entry]
             }
-            # 符号表由 产生式右侧 const_declaration 、 ID 与 const_value 获取
-            p[0]["SymbolTable"] = p[1]["SymbolTable"] + [
-                {
-                    "id": self.id,
-                    "token": p[3],
-                    # 判断 type
-                    "type": "INTEGER"
-                    if type(p[5]["value"]) == int
-                    else ("REAL" if type(p[5]["value"]) == float else "CHAR"),
-                    "value": p[5],
-                    # 非 char 类型整数则标记 positive
-                    "positive": True
-                    if type(p[5]["value"]) != str and p[5]["value"] > 0
-                    else False,
-                }
-            ]
-            # 将 ID const_value 加入symbolMap，self.id 为 key，便于通过 id 直接获取符号表信息，下同
-            self.symbolMap[self.id] = {
-                "id": self.id,
-                "token": p[3],
-                "type": "INTEGER"
-                if type(p[5]["value"]) == int
-                else ("REAL" if type(p[5]["value"]) == float else "CHAR"),
-                "value": p[5],
-                "positive": True
-                if type(p[5]["value"]) != str and p[5]["value"] > 0
-                else False,
-            }
-            self.id += 1
-            # 判断变量重复定义
-            if self.inSubFun and p[3] in list(self.subSymbol.keys()):
-                if not self.error:
-                    self.error = []
-                self.error.append(
-                    {
-                        "code": "C-03",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[3]],
-                            "lexpos": p.lexer.lexpos,
-                        },
-                    }
-                )
-            elif not self.inSubFun and p[3] in list(self.curSymbol.keys()):
-                if not self.error:
-                    self.error = []
-                self.error.append(
-                    {
-                        "code": "C-03",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[3]],
-                            "lexpos": p.lexer.lexpos,
-                        },
-                    }
-                )
 
         def p_const_declaration_id(p):
             """
             const_declaration : ID EQUAL const_value
             """
+            symbol_entry = {
+                "id": self.id,
+                "token": p[1],
+                "type": get_type(p[3]["value"]),
+                "value": p[3],
+                "positive": is_positive(p[3]["value"]),
+            }
+            self.curSymbol[p[1]] = symbol_entry
+            self.symbolMap[self.id] = symbol_entry
+            self.id += 1
+            # 判断变量重复定义
+            if (self.inSubFun and p[1] in self.subSymbol) or (not self.inSubFun and p[1] in self.curSymbol):
+                report_error("变量重复定义", p.lexer.lineno, [p[1]], p.lexer.lexpos)
             p[0] = {
                 "length": len(p),
                 "id": self.id,
                 "type": "const_declaration",
                 "values": [{"ID": p[1], "const_value": p[3]}],
+                "SymbolTable": [symbol_entry]
             }
-            p[0]["SymbolTable"] = [
-                {
-                    "id": self.id,
-                    "token": p[1],
-                    "type": "INTEGER"
-                    if type(p[3]["value"]) == int
-                    else ("REAL" if type(p[3]["value"]) == float else "CHAR"),
-                    "value": p[3],
-                    "positive": True
-                    if type(p[3]["value"]) != str and p[3]["value"] > 0
-                    else False,
-                }
-            ]
-            self.symbolMap[self.id] = {
-                "id": self.id,
-                "token": p[1],
-                "type": "INTEGER"
-                if type(p[3]["value"]) == int
-                else ("REAL" if type(p[3]["value"]) == float else "CHAR"),
-                "value": p[3],
-                "positive": True
-                if type(p[3]["value"]) != str and p[3]["value"] > 0
-                else False,
-            }
-            self.id += 1
-            # 判断变量重复定义
-            if self.inSubFun and p[1] in list(self.subSymbol.keys()):
-                if not self.error:
-                    self.error = []
-                self.error.append(
-                    {
-                        "code": "C-03",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[1]],
-                            "lexpos": p.lexer.lexpos,
-                        },
-                    }
-                )
-            elif not self.inSubFun and p[1] in list(self.curSymbol.keys()):
-                if not self.error:
-                    self.error = []
-                self.error.append(
-                    {
-                        "code": "C-03",
-                        "info": {
-                            "line": p.lexer.lineno,
-                            "value": [p[1]],
-                            "lexpos": p.lexer.lexpos,
-                        },
-                    }
-                )
-
+            
+                
         def p_const_value_addop(p):
             """
             const_value : ADDOP NUM
@@ -383,26 +273,28 @@ class pParser(object):
             var_declarations : VAR var_declaration SEMICOLON
                             |
             """
-            # 产生式1 var_declarations -> var var_declaration ;
-            if len(p) == 4:
+            
+            # var_declarations -> ε
+            if len(p) != 4:
+                p[0] = None
+            # var_declarations -> var var_declaration ;
+            else:
                 p[0] = {
                     "length": len(p),
                     "type": "var_declarations",
-                    "var_declaration": p[2],
+                    "var_declaration": p[2]
                 }
-                # 符号表由 var_declaration 获取
+                # 构建符号表
                 p[0]["SymbolTable"] = p[2]["SymbolTable"]
-                # 不在子函数中，在 curSymbol 创建一个 map，把 token 作为 key， id 作为 value
+                # 如果不在子函数内，添加到当前符号表内
                 if not self.inSubFun:
                     for i in p[0]["SymbolTable"]:
                         self.curSymbol[i["token"]] = i["id"]
-                # 在子函数内部，在 subSymbol 创建 map
                 else:
                     for i in p[0]["SymbolTable"]:
                         self.subSymbol[i["token"]] = i["id"]
-            # 产生式2 var_declarations -> ε
-            else:
-                p[0] = None
+        
+            
 
         def p_var_declaration(p):
             """
@@ -416,9 +308,9 @@ class pParser(object):
                     "type": "var_declaration",
                     "values": p[1]["values"] + [{"idlist": p[3], "type": p[5]}],
                 }
-                # 符号表由 产生式右侧 var_declaration idlist type 构造
+                # 构造符号表
                 p[0]["SymbolTable"] = p[1]["SymbolTable"]
-                # 遍历 idlist
+                # 遍历 idlist，把每一个标识符加入符号表
                 for i in p[3]["ids"]:
                     p[0]["SymbolTable"] += [
                         {
@@ -429,10 +321,9 @@ class pParser(object):
                             "dimension": p[5]["SymbolTable"]["dimension"],
                             "size": p[5]["SymbolTable"]["size"],
                             "start": p[5]["SymbolTable"]["start"],
-                            "recordTable": p[5]["SymbolTable"]["recordTable"],
                         }
                     ]
-                    # 以 self.id 为 key，将各项信息作为 value，加入 symbolmap，便于直接获取
+                    # 加入 symbolmap
                     self.symbolMap[self.id] = {
                         "id": self.id,
                         "token": i,
@@ -441,7 +332,6 @@ class pParser(object):
                         "dimension": p[5]["SymbolTable"]["dimension"],
                         "size": p[5]["SymbolTable"]["size"],
                         "start": p[5]["SymbolTable"]["start"],
-                        "recordTable": p[5]["SymbolTable"]["recordTable"],
                     }
                     self.id += 1
             # 产生式2 var_declaration -> idlist : type
@@ -463,7 +353,6 @@ class pParser(object):
                             "dimension": p[3]["SymbolTable"]["dimension"],
                             "size": p[3]["SymbolTable"]["size"],
                             "start": p[3]["SymbolTable"]["start"],
-                            "recordTable": p[3]["SymbolTable"]["recordTable"],
                         }
                     ]
                     self.symbolMap[self.id] = {
@@ -474,7 +363,6 @@ class pParser(object):
                         "dimension": p[3]["SymbolTable"]["dimension"],
                         "size": p[3]["SymbolTable"]["size"],
                         "start": p[3]["SymbolTable"]["start"],
-                        "recordTable": p[3]["SymbolTable"]["recordTable"],
                     }
                     self.id += 1
 
@@ -482,8 +370,8 @@ class pParser(object):
             """
             type : basic_type
                 | ARRAY LBRACKET period RBRACKET OF basic_type
-                | RECORD multype END
             """
+            # type->array[period] of basic_type
             if not type(p[1]) == dict and p[1].upper() == "ARRAY":
                 p[0] = {
                     "length": len(p),
@@ -498,32 +386,18 @@ class pParser(object):
                     "dimension": p[3]["SymbolTable"]["dimension"],
                     "size": p[3]["SymbolTable"]["size"],
                     "start": p[3]["SymbolTable"]["start"],
-                    "recordTable": None,
                 }
-            elif not type(p[1]) == dict and p[1].upper() == "RECORD":
-                p[0] = {
-                    "length": len(p),
-                    "type": "type",
-                    "_type": "RECORD",
-                    "multype": p[2],
-                }
-                p[0]["SymbolTable"] = {
-                    "type": "RECORD",
-                    "isArray": False,
-                    "dimension": 0,
-                    "size": [],
-                    "start": [],
-                    "recordTable": p[2]["SymbolTable"],
-                }
+            # type->basic_type
             else:
-                p[0] = {"length": len(p), "type": "type", "_type": p[1]}
+                p[0] = {"length": len(p),
+                    "type": "type",
+                        "_type": p[1]}
                 p[0]["SymbolTable"] = {
                     "type": p[1]["SymbolTable"],
                     "isArray": False,
                     "dimension": 0,
                     "size": [],
                     "start": [],
-                    "recordTable": None,
                 }
 
         def p_basic_type(p):
@@ -533,23 +407,25 @@ class pParser(object):
                         | BOOLEAN
                         | CHAR
             """
-            p[0] = {"type": "basic_type", "_type": p[1].upper()}
+            p[0] = {"type": "basic_type",
+                    "_type": p[1].upper()}
             p[0]["SymbolTable"] = p[1].upper()
 
-        def p_period(p):
+        def p_period(p):  # 数组
             """
             period : period COM DIGITS POINTTO DIGITS
-                | DIGITS POINTTO DIGITS
+                    | DIGITS POINTTO DIGITS
             """
-            # 产生式1 period -> period , digits .. digits
+            # period -> period , digits ..Digits
             if len(p) == 6:
-                # 判断错误 period左大于右
+                # 错误判断
                 if p[3] > p[5]:
+                    # 初始化错误信息
                     if not self.error:
                         self.error = []
                     self.error += [
                         {
-                            "code": "C-01",
+                            "code": "数组下标下界超过上界",
                             "info": {
                                 "line": p.slice[3].lineno,
                                 "value": [p[3], p[5]],
@@ -565,21 +441,21 @@ class pParser(object):
                     "type": "period",
                     "values": p[1]["values"] + [{"start": p[3], "end": p[5]}],
                 }
-                # 符号表在产生式右侧的 period 基础上结合 digits 获取
+                # 更新符号表
                 p[0]["SymbolTable"] = {
-                    "dimension": p[1]["SymbolTable"]["dimension"] + 1,  # 维度+1
+                    "dimension": p[1]["SymbolTable"]["dimension"] + 1,  # 数组维度
                     "size": p[1]["SymbolTable"]["size"] + [p[5] - p[3] + 1],
                     "start": p[1]["SymbolTable"]["start"] + [p[3]],
                 }
             # 产生式2 period -> digits .. digits
             else:
-                # 判断错误 period左大于右
+
                 if p[1] > p[3]:
                     if not self.error:
                         self.error = []
                     self.error += [
                         {
-                            "code": "C-01",
+                            "code": "数组下标下界超过上界",
                             "info": {
                                 "line": p.slice[1].lineno,
                                 "value": [p[1], p[3]],
@@ -606,9 +482,8 @@ class pParser(object):
             subprogram_declarations : subprogram_declarations subprogram SEMICOLON
                                     |
             """
-            # 标志不在子函数中
             self.inSubFun = False
-            # 产生式1 subprogram_declarations -> subprogram_declarations subprogram ;
+            #  subprogram_declarations -> subprogram_declarations subprogram ;
             if len(p) == 4:
                 p[0] = {
                     "length": len(p),
@@ -617,7 +492,7 @@ class pParser(object):
                 }
                 # 符号表由产生式右侧生成
                 p[0]["SymbolTable"] = p[1]["SymbolTable"] + [p[2]["SymbolTable"]]
-            # 产生式2 subprogram_declarations -> ε
+            # subprogram_declarations -> ε
             else:
                 p[0] = {
                     "length": len(p),
@@ -637,48 +512,42 @@ class pParser(object):
                 "subprogram_head": p[1],
                 "subprogram_body": p[3],
             }
-            # 由产生式右侧构造符号表
+            # 构造符号表
             p[0]["SymbolTable"] = {
                 "id": p[1]["SymbolTable"]["id"],
                 "token": p[1]["SymbolTable"]["token"],
                 "type": p[1]["SymbolTable"]["type"],
-                "table": None,
-            }
-            # 进一步构造 "table": FuncTable
-            p[0]["SymbolTable"]["table"] = {
-                "params": p[1]["SymbolTable"]["params"],
-                "references": p[1]["SymbolTable"]["references"],
-                "constants": p[3]["SymbolTable"]["constants"],
-                "variables": p[1]["SymbolTable"]["variables"]
-                + p[3]["SymbolTable"]["variables"]
-                if p[1]["SymbolTable"]["variables"]
-                else p[3]["SymbolTable"]["variables"],
+                "table": {
+                    "params": p[1]["SymbolTable"]["params"],
+                        "references": p[1]["SymbolTable"]["references"],
+                        "constants": p[3]["SymbolTable"]["constants"],
+                        "variables": p[1]["SymbolTable"]["variables"]
+                        + p[3]["SymbolTable"]["variables"]
+                        if p[1]["SymbolTable"]["variables"]
+                        else p[3]["SymbolTable"]["variables"],
+                    }
             }
 
-        def p_PROCEDURE(p):
+        def p_into_procedure(p):
             """
-            seen_PROCEDURE :
+            into_procedure :
             """
-            # 标识进入子过程
             self.inSubFun = True
-            # 重置 subSymbol
             self.subSymbol = {}
 
-        def p_FUNCTION(p):
+        def p_into_function(p):
             """
-            seen_FUNCTION :
+            into_function :
             """
-            # 标识进入子函数
             self.inSubFun = True
-            # 重置 subSymbol
             self.subSymbol = {}
 
         def p_subprogram_head(p):
             """
-            subprogram_head : seen_PROCEDURE PROCEDURE ID formal_parameter
-                            | seen_FUNCTION FUNCTION ID formal_parameter COLON basic_type
+            subprogram_head : into_procedure PROCEDURE ID formal_parameter
+                            | into_function FUNCTION ID formal_parameter COLON basic_type
             """
-            # 产生式1 subprogram_head -> procedure id formal_parameter ，其中 seen_PROCEDURE 用以进行初始化动作操作
+            # subprogram_head -> into_procedure procedure id formal_parameter
             if not type(p[2]) == dict and p[2].upper() == "PROCEDURE":
                 p[0] = {
                     "length": len(p),
@@ -687,7 +556,7 @@ class pParser(object):
                     "ID": p[3],
                     "formal_parameter": p[4],
                 }
-                # 构造符号表
+                # 子过程符号表
                 p[0]["SymbolTable"] = {
                     "id": self.id,
                     "token": p[3],
@@ -702,7 +571,7 @@ class pParser(object):
                     if p[4] is not None
                     else None,
                 }
-                # 为 symbolMap 添加以 self.id 为 key 的数据项，便于直接获取
+                # 添加到符号表中
                 self.symbolMap[self.id] = {
                     "id": self.id,
                     "token": p[3],
@@ -717,11 +586,14 @@ class pParser(object):
                     if p[4] is not None
                     else None,
                 }
-                # 以 ID 为 key， self.id 为 value，加入 subSymbol
+                # 子函数列表
                 self.subSymbol = {p[3]: self.id}
-                # 以 ID 为 key， 各项信息为值，加入 subFuncMap，便于直接获取
+                # 更新subFuncMap
                 self.subFuncMap[p[3]] = {
                     "type": None,
+                    "params": p[4]["SymbolTable"]["params"]
+                    if p[4] is not None
+                    else None,
                     "variables": p[4]["SymbolTable"]["variables"]
                     if p[4] is not None
                     else None,
@@ -730,7 +602,7 @@ class pParser(object):
                     else None,
                 }
                 self.id += 1
-            # 产生式2 subprogram_head -> function seen_FUNCTION id formal_parameter : basic_type， 其中 seen_FUNCTION 用以进行初始化动作操作
+            #  subprogram_head -> into_function function id formal_parameter : basic_type
             elif not type(p[2]) == dict and p[2].upper() == "FUNCTION":
                 p[0] = {
                     "length": len(p),
@@ -740,6 +612,7 @@ class pParser(object):
                     "formal_parameter": p[4],
                     "basic_type": p[6],
                 }
+                #  子函数过程表
                 p[0]["SymbolTable"] = {
                     "id": self.id,
                     "token": p[3],
@@ -779,7 +652,7 @@ class pParser(object):
                     else None,
                 }
                 self.id += 1
-            # 将各变量加入 subSymbol
+
             if p[0]["SymbolTable"]["variables"] is not None:
                 for i in p[0]["SymbolTable"]["variables"]:
                     self.subSymbol[i["token"]] = i["id"]
@@ -810,14 +683,14 @@ class pParser(object):
             parameter_list : parameter_list SEMICOLON parameter
                         | parameter
             """
-            # 产生式1 parameter_list -> parameter_list ; parameter
+            # parameter_list -> parameter_list ; parameter
             if len(p) == 4:
                 p[0] = {
                     "length": len(p),
                     "type": "parameter_list",
                     "parameters": p[1]["parameters"] + [p[3]],
                 }
-                # 符号表从产生式右侧获取
+
                 p[0]["SymbolTable"] = {
                     "params": p[1]["SymbolTable"]["params"]
                     + p[3]["SymbolTable"]["size"],
@@ -826,7 +699,7 @@ class pParser(object):
                     "variables": p[1]["SymbolTable"]["variables"]
                     + p[3]["SymbolTable"]["variables"],
                 }
-            # 产生式2 parameter_list -> parameter
+            # parameter_list -> parameter
             else:
                 p[0] = {
                     "length": len(p),
@@ -844,21 +717,26 @@ class pParser(object):
             parameter : var_parameter
                     | value_parameter
             """
-            p[0] = {"length": len(p), "type": "parameter", "value": p[1]}
-            # 符号表从产生式右侧获取
+            p[0] = {"length": len(p),
+                    "type": "parameter",
+                    "value": p[1]}
             p[0]["SymbolTable"] = p[1]["SymbolTable"]
 
         def p_var_parameter(p):
             """
             var_parameter : VAR value_parameter
             """
-            p[0] = {"length": len(p), "type": "var_parameter", "value_parameter": p[2]}
+            # 引用调用
+            p[0] = {"length": len(p),
+                    "type": "var_parameter",
+                    "value_parameter": p[2]
+                    }
             p[0]["SymbolTable"] = {
-                # 函数定义变量是引用调用
+
                 "references": [True for i in range(p[2]["SymbolTable"]["size"])],
                 "variables": p[2]["SymbolTable"]["variables"],
                 "size": p[2]["SymbolTable"]["size"],
-            }  # 规约value_parameter的符号表
+            }
 
         def p_value_parameter(p):
             """
@@ -869,13 +747,15 @@ class pParser(object):
                 "type": "value_parameter",
                 "idlist": p[1],
                 "basic_type": p[3],
-            }  # value_parameter的信息
+            }
+            # value_parameter的符号表
             p[0]["SymbolTable"] = {
-                # 函数定义变量不是引用调用
+                # 传值调用
                 "references": [False for i in range(len(p[1]["ids"]))],
                 "size": len(p[1]["ids"]),  # size为id数量
                 "variables": [],
-            }  # value_parameter的符号表
+            }
+            # 添加新的参数变量
             for i in p[1]["ids"]:  # 遍历idlist中的每个id
                 p[0]["SymbolTable"]["variables"] = p[0]["SymbolTable"]["variables"] + [
                     {
@@ -886,9 +766,9 @@ class pParser(object):
                         "dimension": 0,
                         "size": [],
                         "start": [],
-                        "recordType": None,
                     }
-                ]  # 扩充value_parameter符号表的变量列表
+                ]
+                # 更新符号表
                 self.symbolMap[self.id] = {
                     "id": self.id,
                     "token": i,
@@ -897,9 +777,8 @@ class pParser(object):
                     "dimension": 0,
                     "size": [],
                     "start": [],
-                    "recordType": None,
-                }  # 将该id加入synbolMap大表用于查询
-                self.id += 1  # id数目增加
+                }
+                self.id += 1
 
         def p_subprogram_body(p):
             """
@@ -913,9 +792,7 @@ class pParser(object):
                 "compound_statement": p[3],
             }
             p[0]["SymbolTable"] = {
-                # 常量符号表，若无const_declarations则置空
                 "constants": p[1]["SymbolTable"] if p[1] else [],
-                # 变量符号表，若无var_declarations则置空
                 "variables": p[2]["SymbolTable"] if p[2] else [],
             }
 
@@ -926,7 +803,7 @@ class pParser(object):
             p[0] = {
                 "length": len(p),
                 "type": "compound_statement",
-                "statement_list": p[2],  # 规约语句的列表
+                "statement_list": p[2]
             }
 
         def p_statement_list(p):
@@ -934,20 +811,19 @@ class pParser(object):
             statement_list : statement_list SEMICOLON statement
                         | statement
             """
-            if len(p) == 4:  # statement_list : statement_list SEMICOLON statement
+            if len(p) == 4:
+                # statement_list -> statement_list SEMICOLON statement
                 p[0] = {
                     "length": len(p),
                     "type": "statement_list",
-                    # 判断p[3]是否为None
                     "statements": p[1]["statements"] + [p[3]]
-                    if p[3]
-                    else p[1]["statements"],
                 }
-            else:  # statement_list : statement
+            else:
+            # statement_list -> statement
                 p[0] = {
                     "length": len(p),
                     "type": "statement_list",
-                    "statements": [p[1]],
+                    "statements": [p[1]]
                 }
 
         def p_statement(p):
@@ -1241,7 +1117,7 @@ class pParser(object):
                     self.error = []
                 self.error += [
                     {
-                        "code": "C-02",
+                        "code": "使用的变量未定义",
                         "info": {
                             "line": p.slice[1].lineno,
                             "value": [p[1]],
@@ -1263,7 +1139,7 @@ class pParser(object):
                         self.error = []
                     self.error += [
                         {
-                            "code": "C-02",
+                            "code": "使用的变量未定义",
                             "info": {
                                 "line": p.slice[1].lineno,
                                 "value": [i],
@@ -1291,7 +1167,7 @@ class pParser(object):
                             self.error = []
                         self.error += [
                             {
-                                "code": "C-02",
+                                "code": "使用的变量未定义",
                                 "info": {
                                     "line": p.slice[1].lineno,
                                     "value": [j],
@@ -1405,7 +1281,7 @@ class pParser(object):
                                 self.error = []
                             self.error += [
                                 {
-                                    "code": "C-13",
+                                    "code": "函数调用时参数未定义",
                                     "info": {
                                         "line": p.slice[1].lineno,
                                         "value": [from_type, to_type],
@@ -1613,7 +1489,7 @@ class pParser(object):
                         self.error = []
                     self.error += [
                         {
-                            "code": "C-07",
+                            "code": "对未定义的变量进行运算",
                             "info": {"line": p.lexer.lineno, "lexpos": p.lexer.lexpos},
                         }
                     ]  # 错误类型：对未定义的变量进行运算
@@ -1680,7 +1556,7 @@ class pParser(object):
                         self.error = []
                     self.error += [
                         {
-                            "code": "C-07",
+                            "code": "对未定义的变量进行运算",
                             "info": {"line": p.lexer.lineno, "lexpos": p.lexer.lexpos},
                         }
                     ]  # 错误类型：对未定义的变量进行运算
@@ -1801,7 +1677,7 @@ class pParser(object):
                             self.error = []
                         self.error += [
                             {
-                                "code": "C-13",
+                                "code": "函数调用时参数未定义",
                                 "info": {
                                     "line": p.slice[1].lineno,
                                     "value": [from_type, to_type],
