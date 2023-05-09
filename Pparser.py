@@ -1964,12 +1964,12 @@ class pParser(object):
         }
 
 
-Parser = pParser()
-fin = "testcodes/1.pas"
-f = open(fin, "r")
-data = f.read()
-kk = Parser.parse(data)
-temp_data = json.dumps(kk)
-f2 = open("res.json", "w")
-f2.write(temp_data)
-f2.close()
+# Parser = pParser()
+# fin = "testcodes/1.pas"
+# f = open(fin, "r")
+# data = f.read()
+# kk = Parser.parse(data)
+# temp_data = json.dumps(kk)
+# f2 = open("res.json", "w")
+# f2.write(temp_data)
+# f2.close()
