@@ -297,7 +297,7 @@ def p_var_declarations(p):
                 # 更新subFuncMap
                 if p[3] in self.subFuncMap:
                     if not self.warning:
-                        self.warning = []
+                        self.warning = ["procedure are repeatedly defined"]
                         self.warning += [{
                             "code": "函数重载",
                             "info": {
@@ -362,7 +362,7 @@ def p_var_declarations(p):
                 self.subSymbol = {p[3]: self.id}
                 if p[3] in self.subFuncMap:
                     if not self.warning:
-                        self.warning = []
+                        self.warning = ["function are repeatedly defined"]
                         self.warning += [{
                             "code": "函数重载",
                             "info": {
