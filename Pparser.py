@@ -271,7 +271,7 @@ class pParser(object):
             var_declarations : VAR var_declaration SEMICOLON
                             |
             """
-            
+        
             # var_declarations -> ε
             if len(p) != 4:
                 p[0] = None
@@ -291,7 +291,8 @@ class pParser(object):
                 else:
                     for i in p[0]["SymbolTable"]:
                         self.subSymbol[i["token"]] = i["id"]
-        
+       
+            
         def p_var_declaration(p):
             """
             var_declaration : var_declaration SEMICOLON idlist COLON type
@@ -308,7 +309,8 @@ class pParser(object):
                 p[0]["SymbolTable"] = p[1]["SymbolTable"]
                 # 遍历 idlist，把每一个标识符加入符号表
                 for i in p[3]["ids"]:
-                    symbol_entry = { 
+                    p[0]["SymbolTable"] += [
+                        {
                             "id": self.id,
                             "token": i,
                             "type": p[5]["SymbolTable"]["type"],
@@ -317,9 +319,18 @@ class pParser(object):
                             "size": p[5]["SymbolTable"]["size"],
                             "start": p[5]["SymbolTable"]["start"],
                         }
-                    p[0]["SymbolTable"] += [symbol_entry]
+                    ]
                     # 加入 symbolmap
-                    self.symbolMap[self.id] = symbol_entry
+                    self.symbolMap[self.id] = {
+                        "id": self.id,
+                        "token": i,
+                        "type": p[5]["SymbolTable"]["type"],
+                        "isArray": p[5]["SymbolTable"]["isArray"],
+                        "dimension": p[5]["SymbolTable"]["dimension"],
+                        "size": p[5]["SymbolTable"]["size"],
+                        "start": p[5]["SymbolTable"]["start"],
+                    }
+                    self.id += 1
             # 产生式2 var_declaration -> idlist : type
             else:
                 p[0] = {
@@ -330,7 +341,8 @@ class pParser(object):
                 }
                 p[0]["SymbolTable"] = []
                 for i in p[1]["ids"]:
-                    symbol_entry = { 
+                    p[0]["SymbolTable"] += [
+                        {
                             "id": self.id,
                             "token": i,
                             "type": p[3]["SymbolTable"]["type"],
@@ -339,9 +351,17 @@ class pParser(object):
                             "size": p[3]["SymbolTable"]["size"],
                             "start": p[3]["SymbolTable"]["start"],
                         }
-                    p[0]["SymbolTable"] += [symbol_entry]
-                    self.symbolMap[self.id] = symbol_entry
-            self.id += 1
+                    ]
+                    self.symbolMap[self.id] = {
+                        "id": self.id,
+                        "token": i,
+                        "type": p[3]["SymbolTable"]["type"],
+                        "isArray": p[3]["SymbolTable"]["isArray"],
+                        "dimension": p[3]["SymbolTable"]["dimension"],
+                        "size": p[3]["SymbolTable"]["size"],
+                        "start": p[3]["SymbolTable"]["start"],
+                    }
+                    self.id += 1
 
         def p_type(p):
             """
@@ -367,7 +387,7 @@ class pParser(object):
             # type->basic_type
             else:
                 p[0] = {"length": len(p),
-                        "type": "type",
+                       "type": "type",
                         "_type": p[1]}
                 p[0]["SymbolTable"] = {
                     "type": p[1]["SymbolTable"],
@@ -397,32 +417,37 @@ class pParser(object):
             if len(p) == 6:
                 # 错误判断
                 if p[3] > p[5]:
-                    report_error("The array subscript lower bound exceeds the upper bound", 
-                                 p.slice[3].lineno, [p[3], p[5]], p.slice[3].lineno + p.slice[3].lexpos - 1, p.slice[5].lineno + p.slice[5].lexpos + len(str(p[5])))
+                    # 初始化错误信息
+                    report_error("The upper bound is bigger than the lower bounds of the array",p.slice[3].lineno,[p[3], p[5]],p.slice[3].lineno + p.slice[3].lexpos - 1,p.slice[5].lineno
+                                + p.slice[5].lexpos
+                                + len(str(p[5])))
                 p[0] = {
                     "length": len(p),
                     "type": "period",
                     "values": p[1]["values"] + [{"start": p[3], "end": p[5]}],
-                    "SymbolTable":{
-                        "dimension": p[1]["SymbolTable"]["dimension"] + 1,  # 数组维度
-                        "size": p[1]["SymbolTable"]["size"] + [p[5] - p[3] + 1],
-                        "start": p[1]["SymbolTable"]["start"] + [p[3]],
-                    }
+                }
+                # 更新符号表
+                p[0]["SymbolTable"] = {
+                    "dimension": p[1]["SymbolTable"]["dimension"] + 1,  # 数组维度
+                    "size": p[1]["SymbolTable"]["size"] + [p[5] - p[3] + 1],
+                    "start": p[1]["SymbolTable"]["start"] + [p[3]],
                 }
             # 产生式2 period -> digits .. digits
             else:
+
                 if p[1] > p[3]:
-                    report_error("The array subscript lower bound exceeds the upper bound", 
-                                 p.slice[1].lineno, [p[1], p[3]], p.slice[1].lineno + p.slice[1].lexpos - 1, p.slice[3].lineno + p.slice[3].lexpos + len(str(p[3])))
+                    report_error("The upper bound is bigger than the lower bounds of the array",p.slice[1].lineno,[p[1], p[3]],p.slice[1].lineno + p.slice[1].lexpos - 1,p.slice[3].lineno
+                                + p.slice[3].lexpos
+                                + len(str(p[3])))
                 p[0] = {
                     "length": len(p),
                     "type": "period",
                     "values": [{"start": p[1], "end": p[3]}],
-                    "SymbolTable":{
-                        "dimension": 1,
-                        "size": [p[3] - p[1] + 1],
-                        "start": [p[1]],
-                    }
+                }
+                p[0]["SymbolTable"] = {
+                    "dimension": 1,
+                    "size": [p[3] - p[1] + 1],
+                    "start": [p[1]],
                 }
 
         def p_subprogram_declarations(p):
@@ -537,6 +562,18 @@ class pParser(object):
                 # 子函数列表
                 self.subSymbol = {p[3]: self.id}
                 # 更新subFuncMap
+                if p[3] in self.subFuncMap:
+                    if not self.warning:
+                        self.warning = ["procedure are repeatedly defined"]
+                        self.warning += [{
+                            "code": "函数重载",
+                            "info": {
+                                "line": p.lexer.lineno,
+                                "value": [p[3]],
+                                "lexpos": p.lexer.lexpos
+                            }
+                        }]#函数名称重定义
+
                 self.subFuncMap[p[3]] = {
                     "type": None,
                     "params": p[4]["SymbolTable"]["params"]
@@ -590,6 +627,17 @@ class pParser(object):
                     else None,
                 }
                 self.subSymbol = {p[3]: self.id}
+                if p[3] in self.subFuncMap:
+                    if not self.warning:
+                        self.warning = ["function are repeatedly defined"]
+                        self.warning += [{
+                            "code": "函数重载",
+                            "info": {
+                                "line": p.lexer.lineno,
+                                "value": [p[3]],
+                                "lexpos": p.lexer.lexpos
+                            }
+                        }]#函数名称重定义
                 self.subFuncMap[p[3]] = {
                     "type": p[6]["SymbolTable"],
                     "variables": p[4]["SymbolTable"]["variables"]
@@ -767,7 +815,7 @@ class pParser(object):
                     "statements": p[1]["statements"] + [p[3]]
                 }
             else:
-            # statement_list -> statement
+               # statement_list -> statement
                 p[0] = {
                     "length": len(p),
                     "type": "statement_list",
@@ -878,7 +926,7 @@ class pParser(object):
                             if not self.warning:
                                 self.warning = []
                             self.warning += [{
-                                "code": "变量赋值类型不匹配",
+                                "code": "The variable assignment type does not match",
                                 "info": {
                                     "line": p.slice[2].lineno,
                                     "value": [p[1]["ID"], id["type"], p[3]["__type"]],
@@ -994,7 +1042,7 @@ class pParser(object):
                                 if not self.warning:
                                     self.warning = []
                                 self.warning += [{
-                                    "code": "函数调用时参数类型不匹配",
+                                    "code": "Parameter type mismatch when calling the function",
                                     "info": {
                                         "line": p.lexer.lineno,
                                         "value": [self.subFuncMap[p[1]]["variables"][i]['token'], from_type, to_type],
@@ -1209,7 +1257,7 @@ class pParser(object):
                             if not self.warning:
                                 self.warning = []
                             self.warning += [{
-                                "code": "函数调用时参数类型不匹配",
+                                "code": "Parameter type mismatch when calling the function",
                                 "info": {
                                     "line": p.lexer.lineno,
                                     "value": [self.subFuncMap[p[1]]["variables"][i]['token'], from_type, to_type],
