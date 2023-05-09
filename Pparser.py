@@ -1333,7 +1333,7 @@ for file_name in os.listdir(data_path):
             fi.close()
     
 
-# fin = "testcodes/gcd.pas"
+# fin = "testcodes/quickSort.pas"
 # f = open(fin, "r", encoding='utf-8')
 # data = f.read()
 # kk = Parser.parse(data)

@@ -570,8 +570,8 @@ class VariableNode(Node):
 #         Output.FormatOutput(ofile)
 #         ofile.close()
 
-ifile = open('testresults/1.pas.json', 'r')
-ofile = open('testResults/1.pas.c', 'w')
+ifile = open('testresults/quickSort.pas.json', 'r')
+ofile = open('testResults/quickSort.pas.c', 'w')
 tree = json.loads(ifile.read())['ast']
 program = ProgramStructNode(tree)
 program.Parse()
