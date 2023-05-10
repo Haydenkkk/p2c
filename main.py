@@ -18,15 +18,22 @@ def p2c():
     Parser = pParser()
     middle = Parser.parse(data['body'])
     tree = middle['ast']
-    program = ProgramStructNode(tree)
-    program.Parse()
-    cCodes = Output.FormatOutput()
-    res = {
-        'cCodes': cCodes,
-        'error': middle['error'],
-        'warning': middle['warning']
-    }
-    return jsonify(res)
+    if tree is None:
+        return jsonify({
+            'cCodes': 'Something wrong with this code.',
+            'error': middle['error'],
+            'warning': middle['warning']
+        })
+    else:
+        program = ProgramStructNode(tree)
+        program.Parse()
+        cCodes = Output.FormatOutput()
+        res = {
+            'cCodes': cCodes,
+            'error': middle['error'],
+            'warning': middle['warning']
+        }
+        return jsonify(res)
 
 
 app.run(host = '0.0.0.0', port=5000,debug=True)  # 启动服务端
