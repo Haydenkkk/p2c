@@ -1,7 +1,7 @@
 import json
 
-ifile = open('testResults/error2.pas.json', 'r')
-ofile = open('testResults/error2.c', 'w')
+ifile = open('testResults/kruskal.pas.json', 'r')
+ofile = open('testResults/kruskal.c', 'w')
 dfile = open('debug.txt', 'w+')
 
 FUNC_PREFIX = '__func_'
@@ -423,7 +423,7 @@ class StatementNode(Node):
             expression.Parse()
             to_expression.Parse()
             do_statement.Parse()
-            self.ret = 'for(int {0} {1} {2}; {0} <= {3};) {{ {4} }}'.format(id, assignop,
+            self.ret = 'for(int {0} {1} {2}; {0} <= {3}; {0} ++) {{ {4} }}'.format(id, assignop,
                                                                              expression.ret['result'],
                                                                              to_expression.ret['result'],
                                                                              do_statement.ret)

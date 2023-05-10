@@ -48,14 +48,14 @@ int __func_doit(int x) {
 }
 int main() {
 	scanf("%d%d", &n, &m);
-	for(int i = 1; i <= m; ) {
+	for(int i = 1; i <= m; i ++) {
 		scanf("%d%d%d", &a[i], &b[i], &v[i]);
 	}
 	__func_sort(1,m);
-	for(int i = 1; i <= n; ) {
+	for(int i = 1; i <= n; i ++) {
 		p[i]=i;
 	}
-	for(int i = 1; i <= m; ) {
+	for(int i = 1; i <= m; i ++) {
 		x=__func_doit(a[i]);
 		y=__func_doit(b[i]);
 		if((x<>y)) {
