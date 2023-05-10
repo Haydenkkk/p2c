@@ -1,11 +1,6 @@
-import json
-
-# ifile = open('testResults/6.pas.json', 'r')
-# ofile = open('testResults/6.c', 'w')
 dfile = open('debug.txt', 'w+')
 
 FUNC_PREFIX = '__func_'
-
 
 # static class
 class Util:
@@ -28,13 +23,17 @@ class Util:
             return '=='
         if rawOp == ':=':
             return '='
-        if rawOp == 'Mod':
+        if rawOp.lower() == 'mod':
             return '%'
+        if rawOp.lower() == 'and':
+            return '&&'
+        if rawOp.lower() == 'or':
+            return '||'
         return rawOp
 
     @staticmethod
     def ToIOForm(type):
-        if (type == 'int'):
+        if (type in ['int', 'bool']):
             return '%d'
         if (type == 'char'):
             return '%c'
@@ -58,7 +57,8 @@ class Output:
 
         inFor = 0
         tabCount = 0
-        result = ""
+        result = "#include <stdio.h>\n"
+        # print('#include <stdio.h>', file=ofile, flush=True)
         for line in temp:
             if len(line) == 0:
                 continue
@@ -75,6 +75,7 @@ class Output:
                 line = '\t' * tabCount + line
             if (line[-1] == '{'):
                 tabCount += 1
+            
             result += f"{line}\n" if (inFor == 0 or inFor == 1) else f"{line} "
             # print(line, file=ofile, flush=True, end='\n' if (inFor == 0 or inFor == 1) else ' ')
             if inFor > 0:
@@ -127,8 +128,12 @@ class ProgramBodyNode(Node):
         varDeclarations = VarDeclarationsNode(self.tree['var_declarations'])
         subprogramDeclarations = SubprogramDeclarationsNode(self.tree['subprogram_declarations'])
         compoundStatement = CompoundStatementNode(self.tree['compound_statement'])
+
         constDeclarations.Parse()
         varDeclarations.Parse()
+        Output.AppendOutput(constDeclarations.ret)
+        Output.AppendOutput(varDeclarations.ret)
+
         subprogramDeclarations.Parse()
         compoundStatement.Parse()
 
@@ -139,33 +144,47 @@ class ProgramBodyNode(Node):
 
 
 class ConstDeclarationsNode(ListNode):
+    def __init__(self, tree):
+        super().__init__(tree)
+        self.ret = ''
+
     def Parse(self):
         if self.tree == None:
             return
         for treeNode in self.tree['const_declaration']['values']:
             self.child.append(ConstValue(treeNode))
         self.ParseChildByOrder()
+        for node in self.child:
+            self.ret += node.ret
 
 
 # VALUE DEFINITIONS
 # basic value, const, array and struct
 
 class ConstValue(Node):
+
     def Parse(self):
         id = self.tree['ID']
         value = self.tree['const_value']['value']
         type = Util.ConvertType(self.tree['const_value']['_type'])
         # print('const {0} {1} = {2};'.format(type, id, value), file=ofile, flush=True)
-        Output.AppendOutput('const {0} {1} = {2};'.format(type, id, value))
+        # Output.AppendOutput('const {0} {1} = {2};'.format(type, id, value))
+        self.ret = 'const {0} {1} = {2};'.format(type, id, value)
 
 
 class VarDeclarationsNode(ListNode):
+    def __init__(self, tree):
+        super().__init__(tree)
+        self.ret = ''
+
     def Parse(self):
         if self.tree == None:
             return
         for treeNode in self.tree['var_declaration']['values']:
             self.child.append(VarValueNode(treeNode))
         self.ParseChildByOrder()
+        for node in self.child:
+            self.ret += node.ret
 
 
 # var_declaration
@@ -175,6 +194,7 @@ class VarValueNode(Node):
         super().__init__(tree)
 
         # if false, return the result rather than directly print it
+        # OUTDATED
         self.output = output
 
     def Parse(self):
@@ -206,11 +226,12 @@ class VarValueNode(Node):
             multype.Parse()
             result = '{0} {1};'.format(multype.structName, ','.join(idlist))
 
-        if self.output:
-            # print(result, file=ofile, flush=True)
-            Output.AppendOutput(result)
-        else:
-            return result
+        # if self.output:
+        #     # print(result, file=ofile, flush=True)
+        #     Output.AppendOutput(result)
+        # else:
+        #     return result
+        self.ret = result
 
 
 class MultypeNode(ListNode):
@@ -321,13 +342,14 @@ class SubprogramBodyNode(Node):
         varDeclarations.Parse()
         compoundStatement.Parse()
 
+        decalarations = constDeclarations.ret + varDeclarations.ret
         body = compoundStatement.ret
         if self.head[:4] != 'void':
             temp = self.head[:self.head.index('(')].split()
             temp[1] = temp[1].replace(FUNC_PREFIX, '')
-            body = '{0} {{ {1} {2}; {3} return {2}; }}'.format(self.head, temp[0], temp[1], body)
+            body = '{0} {{ {1} {2}; {4} {3} return {2}; }}'.format(self.head, temp[0], temp[1], body, decalarations)
         else:
-            body = '{0} {{ {1} }}'.format(self.head, body)
+            body = '{0} {{ {2} {1} }}'.format(self.head, body, decalarations)
         # print(body, file=ofile, flush=True)
         Output.AppendOutput(body)
 
@@ -384,22 +406,31 @@ class StatementNode(Node):
                 self.ret = 'if({0}) {{ {1} }}'.format(expression.ret['result'], statement.ret)
 
         elif statementType == 'FOR':
-            # statement -> for id assignop expression to to_expression do do_expression
+            # statement -> for id assignop expression to to_expression do do_statement
             # for(int id = expression; id <= to_expression; ) {
-            #       do_expression
+            #       do_statement
             # }
             id = self.tree['ID']
             assignop = Util.ConvertOperator(self.tree['ASSIGNOP'])
             expression = ExpressionNode(self.tree['expression'])
             to_expression = ExpressionNode(self.tree['to_expression'])
-            do_expression = StatementNode(self.tree['statement'])
+            do_statement = StatementNode(self.tree['statement'])
             expression.Parse()
             to_expression.Parse()
-            do_expression.Parse()
+            do_statement.Parse()
             self.ret = 'for(int {0} {1} {2}; {0} <= {3};) {{ {4} }}'.format(id, assignop,
                                                                              expression.ret['result'],
                                                                              to_expression.ret['result'],
-                                                                             do_expression.ret)
+                                                                             do_statement.ret)
+
+        elif statementType == 'WHILE':
+            # statement -> while ???
+            # while(expression) { statement }
+            expression = ExpressionNode(self.tree['expression'])
+            statement = StatementNode(self.tree['statement'])
+            expression.Parse()
+            statement.Parse()
+            self.ret = 'while({0}) {{ {1} }}'.format(expression.ret['result'], statement.ret)
 
 
         elif statementType == 'READ':
@@ -430,9 +461,12 @@ class StatementNode(Node):
 class ProcedureCallNode(Node):
     def Parse(self):
         id = FUNC_PREFIX + self.tree['ID']
-        expressionList = ExpressionListNode(self.tree['expression_list'])
-        expressionList.Parse()
-        self.ret = '{0}({1});'.format(id, ','.join(map(lambda x: x['result'], expressionList.ret)))
+        if 'expression_list' in self.tree:
+            expressionList = ExpressionListNode(self.tree['expression_list'])
+            expressionList.Parse()
+            self.ret = '{0}({1});'.format(id, ','.join(map(lambda x: x['result'], expressionList.ret)))
+        else:
+            self.ret = '{0}();'.format(id)
 
 
 class ExpressionListNode(ListNode):
@@ -570,10 +604,3 @@ class VariableNode(Node):
             expressionList.Parse()
             id += '[' + ']['.join(map(lambda x: x['result'], expressionList.ret)) + ']'
         self.ret = {'id': id, 'type': type}
-
-
-# tree = json.loads(ifile.read())['ast']
-# program = ProgramStructNode(tree)
-# program.Parse()
-
-# Output.FormatOutput()

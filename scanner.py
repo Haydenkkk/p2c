@@ -158,6 +158,12 @@ class Scanner(object):
         t.lexer.lineno += t.value.count("\n")
         pass
 
+    def t_COMMENT2(self,t):
+        r'\(\*(.|\n)*?\*\)'
+        self.comment.append({"comment_value": t.value, "lineno": t.lexer.lineno})
+        t.lexer.lineno += t.value.count("\n")
+        pass
+
     # 正则式匹配NUM，value值保存为float类型
     def t_NUM(self, t):
         r"\d+\.\d+"
