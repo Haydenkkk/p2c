@@ -10,14 +10,29 @@ class RunC:
     def __init__(self):
         self.DefaultConfig()
 
-    def SetIFile(self, iFile):
+    def SetIFilePath(self, iFile):
         RunC.iFile = iFile
 
-    def SetOFile(self, oFile):
+    def SetOFilePath(self, oFile):
         RunC.oFile = oFile
 
-    def SetSourceFile(self, cfile):
+    def SetSourceFilePath(self, cfile):
         RunC.cFile = cfile
+
+    def SetInput(self, input):
+        file = open(RunC.iFile, mode='w+')
+        file.writelines(input)
+        file.close()
+
+    def SetSource(self, sourceCode):
+        file = open(RunC.cFile, mode='w+')
+        file.writelines(sourceCode)
+        file.close()
+
+    def GetOutput(self):
+        file = open(RunC.oFile, mode='r')
+        ret = '\n'.join(file.readlines())
+        return ret
 
     def DefaultConfig(self):
         RunC.iFile = 'ioFile/test.in'

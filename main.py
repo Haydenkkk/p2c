@@ -4,6 +4,7 @@ from flask import request  # 获取参数
 from flask_cors import CORS
 from newgen import ProgramStructNode, Output
 from Pparser import pParser
+from run.run import RunC
 
 # 创建一个flask对象
 app = flask.Flask(__name__)
@@ -33,7 +34,15 @@ def p2c():
             'warning': middle['warning']
         })
 
-
-
+@app.route('/p2crun', methods=['post'])
+def p2crun():
+    data = request.json
+    sourceCode = data['SourceCode']
+    input = data['input']
+    RunC.SetInput(input)
+    RunC.SetSource(sourceCode)
+    RunC.Run()
+    output = RunC.GetOutput()
+    return jsonify(output)
 
 app.run(host = '0.0.0.0', port=5000,debug=True)  # 启动服务端
