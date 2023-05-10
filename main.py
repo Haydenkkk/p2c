@@ -19,7 +19,7 @@ def p2c():
     tree = middle['ast']
     if tree is None:
         return jsonify({
-            'cCodes': 'Something wrong with this code.',
+            'cCodes': '// Something wrong with this code.',
             'error': middle['error'],
             'warning': middle['warning']
         })
