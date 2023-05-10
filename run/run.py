@@ -45,4 +45,6 @@ class RunC:
 
 runc = RunC()
 # RunC.SetSourceFile()
+runc.SetInput('82 40')
 runc.Run()
+print(runc.GetOutput())

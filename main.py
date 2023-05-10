@@ -34,6 +34,9 @@ def p2c():
             'warning': middle['warning']
         })
 
+# params:
+# sourceCode: string, c source code
+# input: string, input of the code
 @app.route('/p2crun', methods=['post'])
 def p2crun():
     data = request.json

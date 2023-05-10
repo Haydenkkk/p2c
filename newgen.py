@@ -1,4 +1,4 @@
-dfile = open('debug.txt', 'w+')
+# dfile = open('debug.txt', 'w+')
 
 FUNC_PREFIX = '__func_'
 
@@ -15,7 +15,7 @@ class Util:
             return 'char'
         if rawType in ['REAL', 'NUM']:
             return 'double'
-        print(rawType, file=dfile, flush=True)
+        # print(rawType, file=dfile, flush=True)
 
     @staticmethod
     def ConvertOperator(rawOp):
@@ -39,7 +39,7 @@ class Util:
             return '%c'
         if (type == 'double'):
             return '%f'
-        print(type, file=dfile, flush=True)
+        # print(type, file=dfile, flush=True)
 
 
 class Output:
@@ -418,7 +418,7 @@ class StatementNode(Node):
             expression.Parse()
             to_expression.Parse()
             do_statement.Parse()
-            self.ret = 'for(int {0} {1} {2}; {0} <= {3};) {{ {4} }}'.format(id, assignop,
+            self.ret = 'for(int {0} {1} {2}; {0} <= {3}; {0} ++) {{ {4} }}'.format(id, assignop,
                                                                              expression.ret['result'],
                                                                              to_expression.ret['result'],
                                                                              do_statement.ret)
