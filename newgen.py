@@ -84,7 +84,7 @@ class Output:
 
     @staticmethod
     def ClearOutput():
-        rawOutput = ''
+        Output.rawOutput = ''
 
 # base class
 class Node:

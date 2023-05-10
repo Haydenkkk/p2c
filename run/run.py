@@ -20,7 +20,7 @@ class RunC:
         RunC.cFile = cfile
 
     def SetInput(self, input):
-        file = open(RunC.iFile, mode='w+')
+        file = open(RunC.iFile, mode='w+',encoding='utf-8')
         file.writelines(input)
         file.close()
 
