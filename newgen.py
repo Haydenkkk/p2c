@@ -1,5 +1,3 @@
-import json
-
 dfile = open('debug.txt', 'w+')
 
 FUNC_PREFIX = '__func_'
