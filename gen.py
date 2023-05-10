@@ -38,7 +38,7 @@ class Util:
 
     @staticmethod
     def ToIOForm(type):
-        if (type == 'int'):
+        if (type in ['int', 'bool']):
             return '%d'
         if (type == 'char'):
             return '%c'
