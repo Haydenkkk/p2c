@@ -82,6 +82,10 @@ class Output:
                 inFor -= 1
         return result
 
+    @staticmethod
+    def ClearOutput():
+        rawOutput = ''
+
 # base class
 class Node:
     def __init__(self, tree):

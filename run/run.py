@@ -41,7 +41,7 @@ class RunC:
 
     def Run(self):
         os.system('gcc {0} -o test'.format(RunC.cFile))
-        os.system('test.exe < {0} > {1}'.format(RunC.iFile, RunC.oFile))
+        os.system('test.exe < {0} > {1}'.format(RunC.iFile, RunC.oFile))    
 
 runc = RunC()
 # RunC.SetSourceFile()
