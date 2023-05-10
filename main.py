@@ -17,6 +17,7 @@ def p2c():
     data = request.json
     Parser = pParser()
     middle = Parser.parse(data['PascalCode'])
+    Output.ClearOutput()
     tree = middle['ast']
     if tree is None:
         return jsonify({
