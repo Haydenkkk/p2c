@@ -611,8 +611,8 @@ class VariableNode(Node):
         self.ret = {'id': id, 'type': type}
 
 
-tree = json.loads(ifile.read())['ast']
-program = ProgramStructNode(tree)
-program.Parse()
+# tree = json.loads(ifile.read())['ast']
+# program = ProgramStructNode(tree)
+# program.Parse()
 
-Output.FormatOutput()
+# Output.FormatOutput()

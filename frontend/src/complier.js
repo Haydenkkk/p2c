@@ -4,7 +4,7 @@ const Compiler = () => {
   const [outputCode, setOutputCode] = useState("");
   const [error, setError] = useState("");
   const [PascalCode, setPascalCode] = useState("");
-  const handSubmit = (e, value) => {
+  const handSubmit = (e) => {
     e.preventDefault();
     const codes = { PascalCode };
     fetch("http://localhost:5000/p2c", {
@@ -59,7 +59,7 @@ const Compiler = () => {
                   value={PascalCode}
                   onChange={(e) => {
                     setPascalCode(e.target.value);
-                    handSubmit(e, e.target.value);
+                    handSubmit(e);
                   }}
                   placeholder="Enter your code here..."
                 ></textarea>

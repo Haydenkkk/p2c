@@ -15,6 +15,8 @@ class Util:
             return 'char'
         if rawType in ['REAL', 'NUM']:
             return 'double'
+        if rawType == 'UNDEFINED':
+            return 'auto'
         # print(rawType, file=dfile, flush=True)
 
     @staticmethod
@@ -33,7 +35,7 @@ class Util:
 
     @staticmethod
     def ToIOForm(type):
-        if (type in ['int', 'bool']):
+        if (type in ['int', 'bool', 'auto']):
             return '%d'
         if (type == 'char'):
             return '%c'
