@@ -1,5 +1,5 @@
 program example(input,output);
-    var x,y:integer;
+    {var x,y:integer;}
     function gcd(a,b:integer):integer;
         begin 
             if b=0 then gcd:=a
