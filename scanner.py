@@ -101,6 +101,8 @@ class Scanner(object):
     t_ARRAY = r"(?i)ARRAY"
     # 赋值
     t_ASSIGNOP = r":="
+    t_EQUAL = r"="
+    # 不将“ = ”列为关系运算符是考虑到语法分析中的应用
     # 标点符
     t_COLON = r":"
     t_COM = r","
@@ -111,8 +113,7 @@ class Scanner(object):
     t_POINTTO = "\.\."
     t_POINT = r"\."
     t_SEMICOLON = r";"
-    # 不将“ = ”列为关系运算符是考虑到语法分析中的应用
-    t_EQUAL = r"="
+    
     t_PROGRAM = r"(?i)PROGRAM"
     t_PROCEDURE = r"(?i)PROCEDURE"
     t_FUNCTION = r"(?i)FUNCTION"
@@ -176,7 +177,7 @@ class Scanner(object):
         if int(t.value) > 65535:
             self.error.append(
                 {
-                    "TYPE": "词法分析整数越界错误",
+                    "TYPE": "Lexical Analysis Integer Out of Bounds Error",
                     "info": {
                         "line": t.lineno,
                         "value": [t.value.split("\n")[0]],
@@ -201,7 +202,7 @@ class Scanner(object):
     def t_error(self, t):
         self.error.append(
             {
-                "code": "词法分析非法字符错误",
+                "code": "Lexical Analysis Illegal Character Error",
                 "info": {
                     "line": t.lineno,
                     "value": [t.value.split("\n")[0]],

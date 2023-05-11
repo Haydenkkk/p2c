@@ -1,10 +1,10 @@
 import { useState } from "react";
-import TextField from "@mui/material/TextField";
+
 const Compiler = () => {
   const [outputCode, setOutputCode] = useState("");
   const [error, setError] = useState("");
   const [PascalCode, setPascalCode] = useState("");
-  const handSubmit = (e) => {
+  const handSubmit = (e, value) => {
     e.preventDefault();
     const codes = { PascalCode };
     fetch("http://localhost:5000/p2c", {
@@ -14,12 +14,11 @@ const Compiler = () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(codes),
-    }).then((res) => {
-      return res.json().then((response) => {
-        console.log(response["error"]);
-        setOutputCode(response["cCodes"]);
-        setError(response["error"]);
-      });
+    }).then(async (res) => {
+      const response = await res.json();
+      console.log(response["error"]);
+      setOutputCode(response["cCodes"]);
+      setError(response["error"]);
     });
   };
 
@@ -58,7 +57,10 @@ const Compiler = () => {
                   spellcheck="false"
                   rows="30"
                   value={PascalCode}
-                  onChange={(e) => setPascalCode(e.target.value)}
+                  onChange={(e) => {
+                    setPascalCode(e.target.value);
+                    handSubmit(e, e.target.value);
+                  }}
                   placeholder="Enter your code here..."
                 ></textarea>
               </div>
@@ -79,7 +81,7 @@ const Compiler = () => {
         </div>
         <div className="right-panel">
           <h2>Output:</h2>
-          <TextField
+          {/* <TextField
             label="outputCodes"
             fullWidth
             color="success"
@@ -91,7 +93,7 @@ const Compiler = () => {
             value={outputCode}
             id="s"
             // variant="standard"
-          />
+          /> */}
           {/* <TextField
             label="errors"
             fullWidth
@@ -107,8 +109,32 @@ const Compiler = () => {
             id="s"
             // variant="standard"
           /> */}
-          {/* <pre id="outputCode">{outputCode}</pre> */}
-          {/* <pre id="error">{error}</pre> */}
+          <pre id="outputCode">{outputCode}</pre>
+          <h2>Errors:</h2>
+          <>
+            {error.length && (
+              <p id="error">
+                {error.map((error) => (
+                  <li key={error.code}>
+                    Code: {error.code}, Line: {error.info.line}, Value:{" "}
+                    {error.info.value}, Lexpos: {error.info.lexpos}
+                  </li>
+                ))}
+              </p>
+            )}
+          </>
+          {/* {error.length && (
+            <p id="error">
+              {error.forEach((error) => {
+                <>
+                  <p>`Code: ${error.code}`</p>
+                  <p>`Line: ${error.info.line}`</p>
+                  <p>`Value: ${error.info.value}`</p>
+                  <p>`Lexpos: ${error.info.lexpos}`</p>
+                </>;
+              })}
+            </p>
+          )} */}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import Compiler from "./test";
+import Compiler from "./complier";
 
 function App() {
   return (
